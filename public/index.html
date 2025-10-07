@@ -828,7 +828,7 @@
 
             try {
                 // Hacemos la petición a nuestro servidor local
-                const response = await fetch('http://192.168.1.104:3000/api/cases');
+                const response = await fetch('/api/cases'); [cite_start]// <-- ESTA ES LA LÍNEA CORRECTA
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `Error del servidor: ${response.status}`);
@@ -2314,5 +2314,6 @@
         document.getElementById('exportExcelBtn').addEventListener('click', saveChangesToServer);
     </script>
 </body>
+
 
 </html>
