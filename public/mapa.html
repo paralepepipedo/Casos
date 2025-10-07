@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Casos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet.js CSS (Alternativa a Google Maps) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+        #map-container { height: calc(100vh - 56px); } /* 56px is the default navbar height */
+        #map { height: 100%; }
+        #loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            z-index: 1000; /* Asegurarse que esté sobre el mapa de Leaflet */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(2px);
+        }
+        .side-panel {
+            position: absolute;
+            top: 70px;
+            width: 380px;
+            max-height: calc(100vh - 80px);
+            background: white;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease-in-out;
+        }
+        #failed-addresses-panel {
+            right: 10px;
+            transform: translateX(calc(100% + 20px));
+        }
+        #failed-addresses-panel.show {
+            transform: translateX(0);
+        }
+        #search-results-panel {
+            left: 10px;
+            transform: translateX(calc(-100% - 20px));
+        }
+        #search-results-panel.show {
+            transform: translateX(0);
+        }
+        .panel-header {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8f9fa;
+        }
+        .panel-header h5 { margin: 0; font-size: 1rem; }
+        #close-panel-btn {
+            border: none; background: none; font-size: 1.5rem; cursor: pointer; padding: 0 5px; line-height: 1;
+        }
+        .panel-body {
+            padding: 15px;
+            overflow-y: auto;
+        }
+        #failed-list { list-style: none; padding: 0; margin: 0; }
+        #failed-list li { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        #failed-list li:last-child { border-bottom: none; }
+        #show-panel-btn {
+            position: absolute;
+            top: 70px;
+            right: 10px; /* Mover a la derecha */
+            z-index: 999;
+            display: none; /* Hidden until there are failed addresses */
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-gradient" style="background-color: #4e73df;">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">
+                <i class="fas fa-map-marked-alt me-2"></i>Mapa de Casos
+            </a>
+            <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
+                <div class="nav-item me-3">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <input type="text" class="form-control bg-light border-0" id="mapSearchInput" placeholder="Buscar por nombre o expediente...">
+                        <button class="btn btn-primary" type="button" id="mapSearchBtn"><i class="fas fa-search"></i></button>
+                    </div>
+                </div>
+                 <div class="nav-item dropdown me-3">
+                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+                        <i class="fas fa-filter me-1"></i> Estado
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" id="statusFilterList" style="min-width: 200px;">
+                        <!-- Opciones de filtro se poblarán aquí -->
+                    </ul>
+                </div>
+                <div class="nav-item me-3">
+                    <input type="file" id="importCacheInput" class="d-none" accept=".json">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-light" id="importCacheBtn" title="Importar ubicaciones"><i class="fas fa-upload me-1"></i> Importar</button>
+                        <button class="btn btn-outline-light" id="exportCacheBtn" title="Exportar ubicaciones"><i class="fas fa-download me-1"></i> Exportar</button>
+                    </div>
+                </div>
+                 <a class="nav-link text-white" href="index.html"><i class="fas fa-arrow-left me-1"></i> Volver</a>
+            </div>
+        </div>
+    </nav>
+
+    <div id="map-container">
+        <div id="loading-overlay">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3 text-muted fw-bold">Geocodificando direcciones, esto puede tardar unos segundos...</p>
+            <p class="mt-1 text-muted small"><span id="processed-count">0</span> / <span id="total-count">0</span> direcciones procesadas.</p>
+            <div id="error-log" class="mt-3 text-danger small fw-bold d-none" style="max-width: 80%; text-align: center;"></div>
+        </div>
+        <div id="failed-addresses-panel" class="side-panel">
+            <div class="panel-header">
+                <h5><i class="fas fa-map-pin me-2 text-danger"></i>Direcciones no encontradas</h5>
+                <button id="close-panel-btn" title="Cerrar panel">&times;</button>
+            </div>
+            <div class="panel-body">
+                <ul id="failed-list"></ul>
+            </div>
+        </div>
+        <div id="search-results-panel" class="side-panel">
+            <div class="panel-header">
+                <h5><i class="fas fa-search-location me-2 text-primary"></i>Resultados de Búsqueda</h5>
+                <button id="close-search-panel-btn" title="Cerrar panel">&times;</button>
+            </div>
+            <div class="panel-body">
+                <p id="search-results-summary" class="text-muted small mb-2"></p>
+                <ul id="search-results-list" class="list-group list-group-flush"></ul>
+            </div>
+        </div>
+        <button id="show-panel-btn" class="btn btn-warning shadow"><i class="fas fa-search-location me-2"></i>Revisar <span id="failed-count" class="badge bg-danger">0</span></button>
+        <div id="initial-load-options" class="card text-center" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1001; padding: 2rem; width: 90%; max-width: 500px; display: none;">
+            <div class="card-body">
+                <h4 class="card-title">Cargar Mapa de Casos</h4>
+                <p class="text-muted mb-4">No se encontraron ubicaciones guardadas. Debes buscarlas por primera vez o cargar un archivo de respaldo.</p>
+                <div class="d-grid gap-2">
+                    <button id="start-geocoding-btn" class="btn btn-primary">
+                        <i class="fas fa-map-marker-alt me-2"></i> Buscar Todas las Ubicaciones
+                    </button>
+                    <button id="trigger-import-btn" class="btn btn-outline-secondary">
+                        <i class="fas fa-upload me-1"></i> Cargar desde Archivo de Respaldo
+                    </button>
+                </div>
+                <div class="mt-4 border-top pt-3">
+                    <a href="http://186.107.190.231/abuelos/ubicaciones_cache.json" download="expediente_config.json" class="text-muted small"><i class="fas fa-download me-1"></i> Descargar archivo de ubicaciones de respaldo</a>
+                </div>
+            </div>
+        </div>
+        <div id="manual-placement-toast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1001;">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-crosshairs me-2"></i> Haz clic en el mapa para ubicar la dirección.
+                </div>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div id="no-data-message" class="text-center py-5 d-none">
+        <div class="card" style="max-width: 600px; margin: auto;">
+            <div class="card-body">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h3 class="card-title">No hay datos para mostrar</h3>
+                <p class="card-text">Para ver el mapa, primero debes cargar un archivo de Excel en la página principal.</p>
+                <a href="index.html" class="btn btn-primary"><i class="fas fa-home me-1"></i> Ir a la página principal</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet.js y plugins -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let allCases = [];
+        let map;
+        let markerClusterGroup;
+        let allMarkers = []; // Almacenará todos los marcadores creados para un filtrado rápido
+        const GEOCODE_CACHE_KEY = 'geocodeCache'; 
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- INICIO DE LA MODIFICACIÓN: Comportamiento del botón "Volver" ---
+            // Si la página del mapa fue abierta desde otra ventana (ej: con window.open desde index.html),
+            // el botón "Volver" debe cerrar la pestaña en lugar de navegar. Esto preserva el estado
+            // de la página principal, incluyendo cambios no guardados.
+            const backButton = document.querySelector('a.nav-link[href="index.html"]');
+            if (backButton && window.opener) {
+                backButton.href = "javascript:window.close();"; // Para clics de todo tipo (izq, medio, der)
+                backButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.close();
+                });
+            }
+            // --- FIN DE LA MODIFICACIÓN ---
+
+            const casesDataRaw = sessionStorage.getItem('casesDataForMap');
+            if (!casesDataRaw) {
+                document.getElementById('map-container').classList.add('d-none');
+                document.getElementById('no-data-message').classList.remove('d-none');
+                console.error("No hay datos de casos en sessionStorage.");
+                return;
+            }
+
+            allCases = JSON.parse(casesDataRaw);
+
+            // Inicializar el mapa de Leaflet
+            map = L.map('map', { maxZoom: 18 }).setView([-33.45694, -70.64827], 12);
+            markerClusterGroup = L.markerClusterGroup().addTo(map);
+
+            // Añadir la capa de mapa base de OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            populateStatusFilter();
+
+            // --- Lógica de Carga Inteligente ---
+            const geocodeCache = JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY)) || {};
+            if (Object.keys(geocodeCache).length > 0) {
+                // Si hay caché, renderizar el mapa instantáneamente.
+                document.getElementById('loading-overlay').style.display = 'none';
+                renderMapFromCache(geocodeCache);
+                showSpecificCaseOnMap();
+            } else {
+                // Si no hay caché, mostrar las opciones de carga inicial.
+                document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('initial-load-options').style.display = 'block';
+            }
+
+            document.getElementById('start-geocoding-btn').addEventListener('click', async () => {
+                document.getElementById('initial-load-options').style.display = 'none';
+                document.getElementById('loading-overlay').style.display = 'flex';
+                const casesWithAddress = allCases.filter(c => c['CALLE/AVENIDA'] && c['NUMERO']);
+                await processAddresses(casesWithAddress);
+                showSpecificCaseOnMap();
+            });
+
+            document.getElementById('trigger-import-btn').addEventListener('click', () => {
+                document.getElementById('importCacheInput').click();
+            });
+            // Listeners para el panel de direcciones no encontradas
+            document.getElementById('show-panel-btn').addEventListener('click', () => {
+                document.getElementById('search-results-panel').classList.remove('show');
+                document.getElementById('failed-addresses-panel').classList.add('show');
+            });
+            document.getElementById('close-panel-btn').addEventListener('click', () => {
+                document.getElementById('failed-addresses-panel').classList.remove('show');
+            });
+
+            // Listeners para importar/exportar caché
+            document.getElementById('exportCacheBtn').addEventListener('click', exportCache);
+            document.getElementById('importCacheBtn').addEventListener('click', () => {
+                if (confirm('Esto fusionará las ubicaciones del archivo con las ya guardadas. Las ubicaciones del archivo tendrán prioridad. ¿Deseas continuar?')) {
+                    document.getElementById('importCacheInput').click();
+                }
+            });
+            document.getElementById('importCacheInput').addEventListener('change', importCache);
+
+            // Listeners para el buscador del mapa
+            document.getElementById('mapSearchBtn').addEventListener('click', searchOnMap);
+            document.getElementById('mapSearchInput').addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    searchOnMap();
+                }
+            });
+
+            // Listener para el panel de resultados de búsqueda
+            document.getElementById('close-search-panel-btn').addEventListener('click', () => {
+                document.getElementById('search-results-panel').classList.remove('show');
+            });
+
+            // Listener para forzar la descarga del archivo de respaldo
+            document.getElementById('download-backup-locations').addEventListener('click', handleForcedDownload);
+        });
+
+        function populateStatusFilter() {
+            const filterList = document.getElementById('statusFilterList');
+            const statuses = [...new Set(allCases.map(c => c.estado || 'No especificado'))].sort();
+            
+            statuses.forEach(status => {
+                const li = document.createElement('li');
+                li.className = 'dropdown-item';
+                li.innerHTML = `<div class="form-check"><input class="form-check-input status-filter-check" type="checkbox" value="${status}" id="status-${status}"><label class="form-check-label" for="status-${status}">${status}</label></div>`;
+                li.addEventListener('click', (e) => e.stopPropagation());
+                li.querySelector('input').addEventListener('change', updateVisibleMarkers);
+                filterList.appendChild(li);
+            });
+        }
+
+        function updateVisibleMarkers() {
+            const selectedStatuses = [];
+            document.querySelectorAll('.status-filter-check:checked').forEach(cb => selectedStatuses.push(cb.value));
+
+            markerClusterGroup.clearLayers();
+
+            const markersToShow = selectedStatuses.length === 0
+                ? allMarkers
+                : allMarkers.filter(marker => selectedStatuses.includes(marker.options.caseData.estado || 'No especificado'));
+
+            markerClusterGroup.addLayers(markersToShow);
+        }
+
+        async function processAddresses(casesWithAddress) {
+            
+            // --- INICIO DE LA MODIFICACIÓN: Diagnóstico y mensajes de error mejorados ---
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingText = loadingOverlay.querySelector('p.fw-bold');
+            const loadingCounts = loadingOverlay.querySelector('p.small');
+            const spinner = loadingOverlay.querySelector('.spinner-border');
+
+            if (casesWithAddress.length === 0) {
+                loadingText.textContent = 'No se encontraron direcciones para mostrar.';
+                // Corregido: No se puede acceder a variables de filtro aquí.
+                if (allCases.length > 0) {
+                    loadingCounts.textContent = 'Verifica que los datos cargados desde el Excel contengan las columnas "CALLE/AVENIDA" y "NUMERO".';
+                } else {
+                    loadingCounts.textContent = 'No se han cargado datos de casos.';
+                }
+                spinner.style.display = 'none';
+                markerClusterGroup.clearLayers(); // Limpiar el mapa
+                displayFailedAddresses([]); // Limpiar el panel de fallidos
+                setTimeout(() => { loadingOverlay.style.display = 'none'; }, 3000); // Ocultar después de un tiempo
+                return; // Detener el procesamiento
+            }
+            
+            // Restaurar la vista de carga normal si había un error
+            loadingText.textContent = 'Geocodificando direcciones, esto puede tardar unos segundos...';
+            loadingCounts.innerHTML = '<span id="processed-count">0</span> / <span id="total-count">0</span> direcciones procesadas.';
+            spinner.style.display = 'block';
+            // --- FIN DE LA MODIFICACIÓN ---
+
+            document.getElementById('total-count').textContent = casesWithAddress.length;
+            
+            const geocodePromises = [];
+            const processedCountEl = document.getElementById('processed-count');
+            const errorLogEl = document.getElementById('error-log');
+            let errorCount = 0;
+            let geocodeCache = JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY)) || {};
+
+            for (const [index, caso] of casesWithAddress.entries()) {
+                const address = `${caso['CALLE/AVENIDA']} ${caso['NUMERO']}, Santiago, Chile`;
+                
+                const promise = new Promise((resolve) => {
+                    // Pequeño delay para no saturar el servicio gratuito de Nominatim
+                    setTimeout(async () => { 
+                        try {
+                            // Revisar si la dirección ya está en el caché
+                            if (geocodeCache[address]) {
+                                processedCountEl.textContent = index + 1;
+                                resolve({ ...geocodeCache[address], caso });
+                                return;
+                            }
+
+                            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`);
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            const data = await response.json();
+                            
+                            processedCountEl.textContent = index + 1;
+
+                            if (data && data.length > 0) {
+                                // Nominatim devuelve lat y lon como strings, los convertimos a números
+                                const result = {
+                                    lat: parseFloat(data[0].lat),
+                                    lon: parseFloat(data[0].lon),
+                                };
+                                // Guardar en el caché para futuras visitas
+                                geocodeCache[address] = result;
+                                // Resolver la promesa con el resultado y los datos del caso
+                                resolve({ ...result, caso });
+                            } else {
+                                console.warn(`Geocode no fue exitoso para la dirección: "${address}"`);
+                                resolve(null);
+                            }
+                        } catch (error) {
+                            console.error(`Error geocodificando "${address}":`, error);
+                            errorCount++;
+                            resolve(null);
+                        }
+                    }, 250 * index); // Espaciar las peticiones para ser respetuosos con el servidor
+                });
+                geocodePromises.push(promise);
+            }
+
+            const locations = await Promise.all(geocodePromises);
+
+            if (errorCount > 0) {
+                errorLogEl.textContent = `No se pudieron procesar ${errorCount} direcciones. Esto puede deberse a problemas de conexión o direcciones muy ambiguas.`;
+                errorLogEl.classList.remove('d-none');
+            }
+
+            // Guardar el caché actualizado en localStorage
+            localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(geocodeCache));
+            
+            markerClusterGroup.clearLayers(); // Limpiar marcadores anteriores
+            allMarkers = []; // Limpiar el array de marcadores global
+
+            const validLocations = locations.filter(loc => loc !== null);
+            const failedCases = [];
+            locations.forEach((loc, index) => {
+                if (loc === null) {
+                    failedCases.push(casesWithAddress[index]);
+                }
+            });
+
+            // Mostrar el panel con las direcciones no encontradas
+            displayFailedAddresses(failedCases);
+
+            if (validLocations.length > 0) {
+                validLocations.forEach(locData => {
+                    const originalAddress = `${locData.caso['CALLE/AVENIDA']} ${locData.caso['NUMERO']}, Santiago, Chile`;
+                    const marker = L.marker([locData.lat, locData.lon]);
+                    const popupContent = `
+                        <b>${locData.caso['NOMBRES'] || ''} ${locData.caso['APELLIDO PATERNO'] || ''}</b><br>
+                        ${locData.caso['CALLE/AVENIDA'] || ''} ${locData.caso['NUMERO'] || ''}<br>
+                        <a href="index.html" class="view-full-details-from-map" data-internal-id="${locData.caso.internal_id}">Ver ficha completa</a>
+                        <hr class="my-1">
+                        <button class="btn btn-sm btn-outline-warning p-1 edit-marker-location-btn" data-address="${originalAddress}">
+                            <i class="fas fa-edit me-1"></i>Editar Ubicación
+                        </button>
+                    `;
+                    marker.bindPopup(popupContent);
+                    marker.options.caseData = locData.caso; // Adjuntar datos del caso al marcador
+                    marker.options.originalAddress = originalAddress;
+                    allMarkers.push(marker);
+                });
+                markerClusterGroup.addLayers(allMarkers);
+
+                // Añadir listener para los enlaces dentro de los popups
+                map.on('popupopen', function() {
+                    document.querySelectorAll('.view-full-details-from-map').forEach(link => {
+                        link.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            sessionStorage.setItem('showCaseDetailOnLoad', this.dataset.internalId);
+                            window.location.href = 'index.html';
+                        });
+                    });
+                    document.querySelectorAll('.edit-marker-location-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const addressToEdit = this.dataset.address;
+                            moveMarkerToFailedList(addressToEdit);
+                        });
+                    });
+                });
+            } else {
+                alert("No se pudo geocodificar ninguna dirección. Verifique la calidad de los datos en el Excel.");
+            }
+            
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        function createMarkerPopupContent(caso, originalAddress) {
+            const addressLine = `${caso['CALLE/AVENIDA'] || ''} ${caso['NUMERO'] || ''}`;
+            return `
+                <b>${caso['NOMBRES'] || ''} ${caso['APELLIDO PATERNO'] || ''}</b><br>
+                ${addressLine}<br>
+                <a href="index.html" class="view-full-details-from-map" data-internal-id="${caso.internal_id}">Ver ficha completa</a>
+                <hr class="my-1">
+                <button class="btn btn-sm btn-outline-warning p-1 edit-marker-location-btn" data-address="${originalAddress}">
+                    <i class="fas fa-edit me-1"></i>Editar Ubicación
+                </button>
+            `;
+        }
+
+        function createFailedListItem(caso) {
+            const originalAddress = `${caso['CALLE/AVENIDA']} ${caso['NUMERO']}, Santiago, Chile`;
+            const li = document.createElement('li');
+            li.dataset.originalAddress = originalAddress;
+            li.dataset.internalId = caso.internal_id;
+            li.innerHTML = `
+                    <div class="fw-bold small">${caso['NOMBRES'] || ''} ${caso['APELLIDO PATERNO'] || ''}</div>
+                    <div class="text-muted small mb-2 fst-italic d-flex justify-content-between align-items-center">
+                        <span>${originalAddress.replace(', Santiago, Chile', '')}</span>
+                        <button class="btn btn-sm btn-link p-0 copy-address-btn" title="Copiar dirección">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control" placeholder="Corregir o buscar aquí...">
+                        <button class="btn btn-outline-primary manual-search-btn" type="button" title="Buscar esta dirección">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <button class="btn btn-outline-success manual-edit-btn" type="button" title="Ubicar manualmente">
+                            <i class="fas fa-crosshairs"></i>
+                        </button>
+                    </div>
+                `;
+
+            const copyBtn = li.querySelector('.copy-address-btn');
+            const searchBtn = li.querySelector('.manual-search-btn');
+            const manualEditBtn = li.querySelector('.manual-edit-btn');
+            const searchInput = li.querySelector('input');
+
+            // Add event listener for the copy button
+            copyBtn.addEventListener('click', () => {
+                const addressText = li.querySelector('.text-muted span').textContent;
+                
+                navigator.clipboard.writeText(addressText).then(() => {
+                    const icon = copyBtn.querySelector('i');
+                    icon.classList.replace('fa-copy', 'fa-check');
+                    setTimeout(() => icon.classList.replace('fa-check', 'fa-copy'), 1500);
+                }).catch(err => {
+                    console.error('Fallo al copiar, usando método de respaldo: ', err);
+                    const textArea = document.createElement("textarea");
+                    textArea.value = addressText;
+                    textArea.style.position = "fixed";
+                    textArea.style.opacity = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        const icon = copyBtn.querySelector('i');
+                        icon.classList.replace('fa-copy', 'fa-check');
+                        setTimeout(() => icon.classList.replace('fa-check', 'fa-copy'), 1500);
+                    } catch (fallbackErr) {
+                        alert('No se pudo copiar la dirección.');
+                        console.error('Fallo el método de respaldo para copiar: ', fallbackErr);
+                    }
+                    document.body.removeChild(textArea);
+                });
+            });
+
+            // Add event listener for the search button
+            const performSearch = async () => {
+                const searchTerm = searchInput.value.trim();
+                    if (!searchTerm) {
+                        alert('Por favor, ingrese una dirección o término de búsqueda.');
+                        return;
+                    }
+                    
+                searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+                searchBtn.disabled = true;
+
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(searchTerm + ', Santiago, Chile')}`);
+                        const data = await response.json();
+
+                        if (data && data.length > 0) {
+                            const lat = parseFloat(data[0].lat);
+                            const lon = parseFloat(data[0].lon);
+                        const caso = allCases.find(c => c.internal_id === li.dataset.internalId);
+
+                            const marker = L.marker([lat, lon]);
+                            const popupContent = createMarkerPopupContent(caso, li.dataset.originalAddress);
+                            marker.bindPopup(popupContent).openPopup();
+                            
+                            // Añadir el marcador nuevo a la lógica de la app
+                            marker.options.caseData = caso;
+                        marker.options.originalAddress = li.dataset.originalAddress;
+                            allMarkers.push(marker);
+                            markerClusterGroup.addLayer(marker);
+
+                            map.setView([lat, lon], 16);
+
+                            let geocodeCache = JSON.parse(localStorage.getItem('geocodeCache')) || {};
+                        geocodeCache[li.dataset.originalAddress] = { lat, lon };
+                            localStorage.setItem('geocodeCache', JSON.stringify(geocodeCache));
+
+                            li.remove();
+                        const failedCountEl = document.getElementById('failed-count');
+                        const showBtn = document.getElementById('show-panel-btn');
+                            const currentCount = parseInt(failedCountEl.textContent, 10) - 1;
+                            failedCountEl.textContent = currentCount;
+                        if (currentCount === 0) { showBtn.style.display = 'none'; document.getElementById('failed-addresses-panel').classList.remove('show'); }
+                        } else { alert('No se encontraron resultados para: ' + searchTerm); }
+                } catch (error) { alert('Ocurrió un error al buscar la dirección.'); } finally {
+                    searchBtn.innerHTML = '<i class="fas fa-search"></i>';
+                    searchBtn.disabled = false;
+                    }
+            };
+
+            searchBtn.addEventListener('click', performSearch);
+            searchInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') performSearch();
+            });
+
+            // Add event listener for the manual placement button
+            manualEditBtn.addEventListener('click', () => {
+                const caso = allCases.find(c => c.internal_id === li.dataset.internalId);
+
+                    const toastEl = document.getElementById('manual-placement-toast');
+                    const toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+
+                    map.getContainer().style.cursor = 'crosshair';
+
+                    map.once('click', function(ev) {
+                        const lat = ev.latlng.lat;
+                        const lon = ev.latlng.lng;
+
+                        const marker = L.marker([lat, lon]);
+                        const popupContent = createMarkerPopupContent(caso, li.dataset.originalAddress);
+                        marker.bindPopup(popupContent).openPopup();
+                        
+                        // Añadir el marcador nuevo a la lógica de la app
+                        marker.options.caseData = caso;
+                    marker.options.originalAddress = li.dataset.originalAddress;
+                        allMarkers.push(marker);
+                        markerClusterGroup.addLayer(marker);
+                        map.setView([lat, lon], 16);
+
+                        let geocodeCache = JSON.parse(localStorage.getItem('geocodeCache')) || {};
+                    geocodeCache[li.dataset.originalAddress] = { lat, lon };
+                        localStorage.setItem('geocodeCache', JSON.stringify(geocodeCache));
+
+                        li.remove();
+                    const failedCountEl = document.getElementById('failed-count');
+                    const showBtn = document.getElementById('show-panel-btn');
+                        const currentCount = parseInt(failedCountEl.textContent, 10) - 1;
+                        failedCountEl.textContent = currentCount;
+                    if (currentCount === 0) { showBtn.style.display = 'none'; document.getElementById('failed-addresses-panel').classList.remove('show'); }
+
+                        map.getContainer().style.cursor = '';
+                        toast.hide();
+                    });
+                });
+
+            return li;
+        }
+
+        function displayFailedAddresses(failedCases) {
+            const list = document.getElementById('failed-list');
+            const showBtn = document.getElementById('show-panel-btn');
+            const failedCountEl = document.getElementById('failed-count');
+            
+            list.innerHTML = ''; // Clear previous list
+            
+            if (failedCases.length === 0) {
+                showBtn.style.display = 'none';
+                return;
+            }
+            
+            failedCountEl.textContent = failedCases.length;
+            showBtn.style.display = 'block';
+
+            failedCases.forEach(caso => {
+                const li = createFailedListItem(caso);
+                list.appendChild(li);
+            });
+        }
+
+        function findMarkerByAddress(address) {
+            return allMarkers.find(m => m.options.originalAddress === address);
+        }
+
+        function moveMarkerToFailedList(addressToEdit) {
+            const markerToMove = findMarkerByAddress(addressToEdit);
+            if (!markerToMove) return;
+
+            map.closePopup();
+            markerClusterGroup.removeLayer(markerToMove);
+            allMarkers = allMarkers.filter(m => m.options.originalAddress !== addressToEdit);
+            
+            let geocodeCache = JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY)) || {};
+            delete geocodeCache[addressToEdit];
+            localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(geocodeCache));
+            
+            const newListItem = createFailedListItem(markerToMove.options.caseData);
+            document.getElementById('failed-list').prepend(newListItem);
+            
+            const failedCountEl = document.getElementById('failed-count');
+            const showBtn = document.getElementById('show-panel-btn');
+            const currentCount = document.getElementById('failed-list').children.length;
+            failedCountEl.textContent = currentCount;
+            if (currentCount > 0) {
+                showBtn.style.display = 'block';
+            }
+        }
+
+        function exportCache() {
+            const cacheData = localStorage.getItem(GEOCODE_CACHE_KEY);
+            if (!cacheData || cacheData === '{}') {
+                alert('No hay ubicaciones guardadas para exportar.');
+                return;
+            }
+
+            const blob = new Blob([cacheData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ubicaciones_cache.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importCache(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedCache = JSON.parse(e.target.result);
+                    if (typeof importedCache !== 'object' || importedCache === null) {
+                        throw new Error('El archivo no es un objeto JSON válido.');
+                    }
+                    let existingCache = JSON.parse(localStorage.getItem(GEOCODE_CACHE_KEY)) || {};
+                    const mergedCache = { ...existingCache, ...importedCache };
+                    localStorage.setItem(GEOCODE_CACHE_KEY, JSON.stringify(mergedCache));
+                    
+                    alert('Ubicaciones importadas y fusionadas con éxito.');
+                    
+                    renderMapFromCache(mergedCache);
+
+                    // Mostrar el caso específico si se pasó desde la página principal
+                    showSpecificCaseOnMap();
+                } catch (error) {
+                    console.error('Error al importar el caché:', error);
+                    alert('Error: El archivo seleccionado no es un archivo de caché de ubicaciones válido.');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; 
+        }
+
+        function renderMapFromCache(geocodeCache) {
+            markerClusterGroup.clearLayers();
+            allMarkers = [];
+            const failedCases = [];
+
+            const casesWithAddress = allCases.filter(c => c['CALLE/AVENIDA'] && c['NUMERO']);
+
+            casesWithAddress.forEach(caso => {
+                const address = `${caso['CALLE/AVENIDA']} ${caso['NUMERO']}, Santiago, Chile`;
+                if (geocodeCache[address]) {
+                    const locData = { ...geocodeCache[address], caso };
+                    const originalAddress = `${locData.caso['CALLE/AVENIDA']} ${locData.caso['NUMERO']}, Santiago, Chile`;
+                    const marker = L.marker([locData.lat, locData.lon]);
+                    const popupContent = `
+                        <b>${locData.caso['NOMBRES'] || ''} ${locData.caso['APELLIDO PATERNO'] || ''}</b><br>
+                        ${locData.caso['CALLE/AVENIDA'] || ''} ${locData.caso['NUMERO'] || ''}<br>
+                        <a href="index.html" class="view-full-details-from-map" data-internal-id="${locData.caso.internal_id}">Ver ficha completa</a>
+                        <hr class="my-1">
+                        <button class="btn btn-sm btn-outline-warning p-1 edit-marker-location-btn" data-address="${originalAddress}">
+                            <i class="fas fa-edit me-1"></i>Editar Ubicación
+                        </button>
+                    `;
+                    marker.bindPopup(popupContent);
+                    marker.options.caseData = locData.caso;
+                    marker.options.originalAddress = originalAddress;
+                    allMarkers.push(marker);
+                } else {
+                    failedCases.push(caso);
+                }
+            });
+
+            markerClusterGroup.addLayers(allMarkers);
+            displayFailedAddresses(failedCases);
+
+            // Re-attach popup listeners since markers are new
+            map.on('popupopen', function() {
+                document.querySelectorAll('.view-full-details-from-map').forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        sessionStorage.setItem('showCaseDetailOnLoad', this.dataset.internalId);
+                        window.location.href = 'index.html';
+                    });
+                });
+                document.querySelectorAll('.edit-marker-location-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const addressToEdit = this.dataset.address;
+                        moveMarkerToFailedList(addressToEdit);
+                    });
+                });
+            });
+
+            document.getElementById('loading-overlay').style.display = 'none';
+            document.getElementById('initial-load-options').style.display = 'none';
+        }
+
+        function showSpecificCaseOnMap() {
+            const caseIdToShow = sessionStorage.getItem('showCaseOnMap');
+            if (caseIdToShow) {
+                const markerToShow = allMarkers.find(m => m.options.caseData.internal_id === caseIdToShow);
+                if (markerToShow) {
+                    // Usar un timeout para dar tiempo al mapa a renderizar los clusters
+                    setTimeout(() => {
+                        markerClusterGroup.zoomToShowLayer(markerToShow, () => {
+                            markerToShow.openPopup();
+                        });
+                    }, 500);
+                } else {
+                    // Esto podría suceder si el caso no tiene una dirección válida y por lo tanto no tiene marcador.
+                    alert('No se pudo encontrar la ubicación para este caso en el mapa.');
+                }
+                sessionStorage.removeItem('showCaseOnMap'); // Limpiar para futuras navegaciones
+            }
+        }
+
+        function searchOnMap() {
+            // Ocultar el panel de "revisar" si está abierto
+            document.getElementById('failed-addresses-panel').classList.remove('show');
+
+            const searchTerm = document.getElementById('mapSearchInput').value.trim().toLowerCase();
+            if (!searchTerm) {
+                return;
+            }
+
+            const foundMarkers = allMarkers.filter(marker => {
+                const caso = marker.options.caseData;
+                const nombre = (caso.nombre || '').toLowerCase();
+                const expediente = String(caso['EXPEDIENTE'] || '').toLowerCase();
+
+                return nombre.includes(searchTerm) || expediente.includes(searchTerm);
+            });
+
+            if (foundMarkers.length === 0) {
+                alert('No se encontró ningún caso con ese nombre o expediente.');
+            } else if (foundMarkers.length === 1) {
+                // Si solo hay un resultado, hacer zoom y abrir el popup
+                const marker = foundMarkers[0];
+                markerClusterGroup.zoomToShowLayer(marker, () => {
+                    marker.openPopup();
+                });
+            } else {
+                // Si hay múltiples resultados, mostrarlos en el panel lateral
+                displaySearchResults(foundMarkers);
+            }
+        }
+
+        function displaySearchResults(foundMarkers) {
+            const panel = document.getElementById('search-results-panel');
+            const list = document.getElementById('search-results-list');
+            const summary = document.getElementById('search-results-summary');
+
+            list.innerHTML = '';
+            summary.textContent = `Se encontraron ${foundMarkers.length} casos.`;
+
+            foundMarkers.forEach(marker => {
+                const caso = marker.options.caseData;
+                const direccion = `${caso['CALLE/AVENIDA'] || ''} ${caso['NUMERO'] || ''}`.trim();
+                const li = document.createElement('li');
+                li.className = 'list-group-item list-group-item-action';
+                li.style.cursor = 'pointer';
+                li.innerHTML = `
+                    <div class="fw-bold">${caso.nombre || 'Sin Nombre'}</div>
+                    <small class="text-muted">${direccion || 'Sin domicilio'}</small>
+                `;
+                li.addEventListener('click', () => {
+                    markerClusterGroup.zoomToShowLayer(marker, () => {
+                        marker.openPopup();
+                    });
+                });
+                list.appendChild(li);
+            });
+
+            panel.classList.add('show');
+        }
+
+        async function handleForcedDownload(e) {
+            e.preventDefault();
+            const link = e.currentTarget;
+            const url = link.href;
+            const filename = link.download;
+
+            const icon = link.querySelector('i');
+            const originalIconClass = icon.className;
+            icon.className = 'fas fa-spinner fa-spin me-1';
+            link.style.pointerEvents = 'none';
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Download failed:', error);
+                alert('No se pudo descargar el archivo. Es posible que el servidor no esté disponible o haya un problema de red.');
+                window.open(url, '_blank'); // Fallback
+            } finally {
+                icon.className = originalIconClass;
+                link.style.pointerEvents = 'auto';
+            }
+        }
+    </script>
+</body>
+</html>
