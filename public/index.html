@@ -828,7 +828,7 @@
 
             try {
                 // Hacemos la petición a nuestro servidor local
-                const response = await fetch('/api/cases'); [cite_start]// <-- ESTA ES LA LÍNEA CORRECTA
+                const response = await fetch('/api/cases');
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `Error del servidor: ${response.status}`);
@@ -2317,3 +2317,4 @@
 
 
 </html>
+
