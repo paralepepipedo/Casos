@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Casos - Adultos Mayores</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --secondary-color: #858796;
+            --success-color: #1cc88a;
+            --info-color: #36b9cc;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --light-color: #f8f9fc;
+            --dark-color: #5a5c69;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fc;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+        }
+
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            background-color: #f8f9fc;
+            border-bottom: 1px solid #e3e6f0;
+            font-weight: 600;
+        }
+
+        .nav-tabs .nav-link {
+            color: var(--secondary-color);
+            font-weight: 500;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .search-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .case-card {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .case-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.2);
+        }
+
+        .priority-baja {
+            border-left: 5px solid var(--success-color);
+        }
+
+        .priority-media {
+            border-left: 5px solid var(--warning-color);
+        }
+
+        .priority-alta {
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .status-seguimiento {
+            background-color: rgba(28, 200, 138, 0.1);
+        }
+
+        .status-cerrado {
+            background-color: rgba(231, 74, 59, 0.1);
+        }
+
+        .status-proceso {
+            background-color: rgba(54, 185, 204, 0.1);
+        }
+
+        .detail-view {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100%;
+            background: white;
+            z-index: 1050;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            padding: 1.5rem;
+            transition: transform 0.3s ease-in-out;
+            transform: translateX(100%);
+            visibility: hidden;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1040;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .detail-view.show {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+        .overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .upload-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .file-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+
+            .detail-view,
+            .detail-view.show {
+                width: 85%;
+            }
+        }
+
+        .stats-card {
+            text-align: center;
+            padding: 2px 5px;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+
+        .sub-stats-number {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .sub-stats-divider {
+            border-left: 1px solid #e3e6f0;
+            height: 30px;
+        }
+
+        /* Insignias más pequeñas para la vista de detalles */
+        .badge.small-badge {
+            padding: 0.25em 0.45em;
+            font-size: 0.4em;
+            font-weight: 200;
+            vertical-align: middle;
+        }
+
+        /* Estilo alternativo y más visual para campos vacíos en el formulario */
+        #caseModal .form-control.empty-field,
+        #caseModal .form-select.empty-field {
+            background-color: #fffaf0;
+            /* Un fondo muy sutil color crema/amarillo */
+            border-left: 4px solid var(--warning-color);
+            transition: background-color 0.2s ease, border-left-color 0.2s ease;
+        }
+
+        /* Al hacer foco en un campo vacío, se normaliza para mejor legibilidad al escribir */
+        #caseModal .form-control.empty-field:focus {
+            background-color: #fff;
+        }
+
+        /* --- Estilos Profesionales para el Formulario de Edición (Modal) --- */
+        #caseModal .modal-header {
+            background-color: var(--primary-color);
+            color: white;
+            border-bottom: none;
+        }
+
+        #caseModal .modal-header .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        #caseModal .modal-title {
+            font-weight: 600;
+        }
+
+        #caseModal .modal-body {
+            background-color: #f8f9fc;
+        }
+
+        #caseModal fieldset {
+            background-color: #fff;
+            border: 1px solid #e3e6f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        #caseModal fieldset legend {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--primary-color);
+            background-color: #fff;
+            border-radius: 0.35rem;
+        }
+
+        #caseModal .form-control,
+        #caseModal .form-select {
+            border-radius: 0.35rem;
+            border: 1px solid #d1d3e2;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        #caseModal .form-control:focus,
+        #caseModal .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
+        }
+
+        /* --- Estilos para la vista de Gantt/Línea de Tiempo de Meses --- */
+        .gantt-chart-container {
+            padding: 1rem;
+            border: 1px solid #e3e6f0;
+            border-radius: 0.5rem;
+            background-color: #fdfdff;
+        }
+
+        .gantt-months {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .gantt-month {
+            flex-grow: 1;
+            min-width: 35px;
+            height: 35px;
+            line-height: 35px;
+            text-align: center;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            color: #adb5bd;
+            font-weight: bold;
+            font-size: 0.8rem;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .gantt-month.active {
+            background-color: var(--success-color);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-gradient" style="background-color: var(--primary-color);">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-hands-helping me-2"></i>Sistema de Casos - Adultos Mayores
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="loadNewFileLink"><i class="fas fa-file-upload me-1"></i> Cargar
+                            Nuevo Archivo</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="configurador.html" target="_blank" rel="noopener noreferrer"><i
+                                class="fas fa-cog me-1"></i> Configuración</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="estadisticas.html" id="statsLink"><i
+                                class="fas fa-chart-pie me-1"></i> Estadísticas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="mapa.html" id="mapLink"><i
+                                class="fas fa-map-marked-alt me-1"></i> Mapa de Casos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" id="exportExcelBtn"><i class="fas fa-save me-1"></i>
+                            Guardar Cambios</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Upload Section -->
+        <div class="row d-none" id="uploadSection">
+            <div class="col-12">
+                <div class="upload-container">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <h3>Cargar archivo Excel</h3>
+                    <p class="text-muted">Selecciona el archivo DANIELA2025.xlsx para visualizar los casos</p>
+
+                    <div class="d-flex justify-content-center">
+                        <div class="mb-3" style="max-width: 500px; width: 100%;">
+                            <input class="form-control" type="file" id="excelFile" accept=".xlsx, .xls">
+                        </div>
+                    </div>
+
+                    <div class="file-info" id="fileInfo">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <span id="fileName"></span>
+                    </div>
+
+                    <div class="mt-3">
+                        <button class="btn btn-primary" id="processFile" disabled>
+                            <i class="fas fa-cog me-1"></i> Procesar archivo
+                        </button>
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <a href="http://186.107.190.231/abuelos/expediente_config.json"
+                            download="expediente_config.json" class="text-muted small"><i
+                                class="fas fa-download me-1"></i> Descargar archivo de configuración
+                            (expediente_config.json)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="row mt-4 d-none" id="statsSection">
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card h-100 d-flex flex-column justify-content-center">
+                    <div class="stats-number" id="totalCases">0</div>
+                    <div>Total de casos</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card h-100 d-flex flex-column">
+                    <div class="stats-number" id="activeCases">0</div>
+                    <div style="font-size: 0.85em; line-height: 1;">Casos Activos</div>
+                    <div class="d-flex justify-content-around align-items-center w-100 mt-auto border-top">
+                        <div class="text-center">
+                            <div class="sub-stats-number" id="inProcessCases">0</div>
+                            <small class="text-muted">En Proceso</small>
+                        </div>
+                        <div class="sub-stats-divider"></div>
+                        <div class="text-center">
+                            <div class="sub-stats-number" id="inTrackingCases">0</div>
+                            <small class="text-muted">Seguimiento</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card h-100 d-flex flex-column justify-content-center">
+                    <div class="stats-number" id="closedCases">0</div>
+                    <div>Casos cerrados</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stats-card h-100 d-flex flex-column justify-content-center">
+                    <div class="stats-number" id="highPriorityCases">0</div>
+                    <div>Prioridad alta</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Section (initially hidden) -->
+        <div class="row d-none" id="dataSection">
+            <div class="col-12">
+                <!-- Search and Filters -->
+                <div class="search-container">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small">Búsqueda General:</label>
+                            <div class="input-group">
+                                <input type="text" id="searchInput" class="form-control"
+                                    placeholder="Buscar por nombre, RUT, dirección...">
+                                <button class="btn btn-primary" type="button" id="searchButton">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Estado del Caso:</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside"
+                                    id="statusFilterBtn">Todos</button>
+                                <ul class="dropdown-menu w-100" id="statusFilterList"></ul>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Prioridad:</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside"
+                                    id="priorityFilterBtn">Todas</button>
+                                <ul class="dropdown-menu w-100" id="priorityFilterList"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3 g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small">Sector:</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside"
+                                    id="sectorFilterBtn">Todos</button>
+                                <ul class="dropdown-menu w-100" id="sectorFilterList"></ul>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Año de Ingreso:</label>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside"
+                                    id="yearFilterBtn">Todos</button>
+                                <ul class="dropdown-menu w-100" id="yearFilterList"></ul>
+                            </div>
+                        </div>
+                        <div class="col-md-3 align-self-end">
+                            <button class="btn btn-outline-secondary w-100" id="resetFilters">
+                                <i class="fas fa-undo me-1"></i> Limpiar filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs Navigation -->
+                <div class="d-flex justify-content-between align-items-center border-bottom">
+                    <ul class="nav nav-tabs border-0" id="casesTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all"
+                                type="button" role="tab">
+                                <i class="fas fa-list me-1"></i> Todos los casos
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="active-tab" data-bs-toggle="tab" data-bs-target="#active"
+                                type="button" role="tab">
+                                <i class="fas fa-clock me-1"></i> En seguimiento
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="closed-tab" data-bs-toggle="tab" data-bs-target="#closed"
+                                type="button" role="tab">
+                                <i class="fas fa-check-circle me-1"></i> Cerrados
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="high-priority-tab" data-bs-toggle="tab"
+                                data-bs-target="#high-priority" type="button" role="tab">
+                                <i class="fas fa-exclamation-circle me-1"></i> Prioridad alta
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="vif-tab" data-bs-toggle="tab" data-bs-target="#vif"
+                                type="button" role="tab">
+                                <i class="fas fa-exclamation-triangle me-1"></i> Casos VIF
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="incomplete-tab" data-bs-toggle="tab"
+                                data-bs-target="#incomplete" type="button" role="tab">
+                                <i class="fas fa-question-circle me-1"></i> Incompletos
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="pe-2 d-flex align-items-center">
+                        <div class="dropdown me-2" id="incomplete-filter-container" style="display: none;">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                id="incompleteColumnsBtn" data-bs-toggle="dropdown" aria-expanded="false"
+                                data-bs-auto-close="outside">
+                                Columnas a revisar
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end p-2" id="incompleteColumnsList"
+                                style="max-height: 400px; overflow-y: auto; min-width: 250px;">
+                                <!-- Checkboxes will be populated here -->
+                            </div>
+                        </div>
+                        <span id="visibleCasesCount" class="text-muted small fw-bold"></span>
+                    </div>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="casesTabContent">
+                    <div class="tab-pane fade show active" id="all" role="tabpanel">
+                        <div class="row mt-3" id="casesContainer">
+                            <!-- Cases will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="active" role="tabpanel">
+                        <div class="row mt-3" id="activeCasesContainer">
+                            <!-- Active cases will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="closed" role="tabpanel">
+                        <div class="row mt-3" id="closedCasesContainer">
+                            <!-- Closed cases will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="high-priority" role="tabpanel">
+                        <div class="row mt-3" id="highPriorityContainer">
+                            <!-- High priority cases will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="vif" role="tabpanel">
+                        <div class="row mt-3" id="vifCasesContainer">
+                            <!-- VIF cases will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="incomplete" role="tabpanel">
+                        <div class="row mt-3" id="incompleteCasesContainer">
+                            <!-- Incomplete cases will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Add Button -->
+    <button class="btn btn-primary btn-lg rounded-circle shadow-lg" id="add-case-btn"
+        style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: none;">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <!-- Case Detail View -->
+    <div class="overlay" id="detailOverlay"></div>
+    <div class="detail-view" id="caseDetail">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="mb-0 d-flex align-items-center flex-wrap" id="detailName">Detalles del Caso</h3>
+            <button type="button" class="btn-close" id="closeDetail"></button>
+        </div>
+        <hr class="my-3">
+
+        <!-- Controles de Acordeón -->
+        <div class="d-flex justify-content-end mb-3" id="detail-controls" style="display: none;">
+            <button class="btn btn-outline-primary btn-sm me-2" id="editFromDetailBtn" title="Editar Caso">
+                <i class="fas fa-pencil-alt"></i>
+            </button>
+            <div class="dropdown me-2">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="categoryFilterBtn"
+                    data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+                    <i class="fas fa-filter me-1"></i> Filtrar Categorías
+                </button>
+                <div class="dropdown-menu dropdown-menu-end p-2" id="categoryFilterList" style="min-width: 250px;">
+                    <!-- Checkboxes will be populated here -->
+                </div>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="expandAllBtn" title="Expandir todo"><i
+                        class="fas fa-plus-square me-1"></i> Expandir Todo</button>
+                <button type="button" class="btn btn-outline-secondary" id="collapseAllBtn" title="Contraer todo"><i
+                        class="fas fa-minus-square me-1"></i> Contraer Todo</button>
+            </div>
+        </div>
+
+        <div id="detailContent">
+        </div>
+    </div>
+
+    <!-- Case Add/Edit Modal -->
+    <div class="modal fade" id="caseModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="caseForm" class="row g-3"></form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveCase">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="d-flex justify-content-center my-4 d-none" id="loadingSpinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando...</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variable to store the cases data
+        let allCases = [];
+        let excelHeaders = [];
+        let originalSheetName = 'Expedientes';
+        let originalFile = null; // Para guardar la referencia al archivo original
+        let caseModal;
+        let viewConfig = { categories: [] }; // Almacenará la configuración del configurador.html
+
+        // --- IndexedDB Helpers para persistir el archivo Excel entre navegaciones ---
+        const DB_NAME = 'ExcelFileCache';
+        const STORE_NAME = 'files';
+        const FILE_KEY = 'lastUploadedFile';
+        let db;
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                if (db) return resolve(db);
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (event) => {
+                    const dbInstance = event.target.result;
+                    if (!dbInstance.objectStoreNames.contains(STORE_NAME)) {
+                        dbInstance.createObjectStore(STORE_NAME);
+                    }
+                };
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+                request.onerror = (event) => {
+                    console.error('IndexedDB error:', event.target.errorCode);
+                    reject('IndexedDB error');
+                };
+            });
+        }
+
+        function saveFileToDB(fileObject) {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put(fileObject, FILE_KEY);
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject('Error saving file to DB: ' + event.target.error);
+            }));
+        }
+
+        function getFileFromDB() {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(FILE_KEY);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject('Error getting file from DB: ' + event.target.error);
+            }));
+        }
+
+        function clearFileFromDB() {
+            return openDB().then(db => new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(FILE_KEY);
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject('Error deleting file from DB: ' + event.target.error);
+            }));
+        }
+
+        // ¡MUY IMPORTANTE! AJUSTA ESTOS NOMBRES para que coincidan EXACTAMENTE con los de tu archivo Excel.
+        // El sistema distingue entre mayúsculas, minúsculas, acentos y espacios.
+        // He actualizado esto con la lista que me proporcionaste.
+        const COLUMNAS = {
+            EXPEDIENTE: 'EXPEDIENTE', // Columna clave para contar casos
+            ID: 'ID',
+            ANO: 'AÑO',
+            MES: 'MES',
+            DIA: 'DIA',
+            NOMBRES: 'NOMBRES',
+            APELLIDO_PATERNO: 'APELLIDO PATERNO',
+            APELLIDO_MATERNO: 'APELLIDO MATERNO',
+            RUT: 'RUT',
+            FECHA_NACIMIENTO: 'FECHA NAC.',
+            TELEFONO: 'TELÉFONO',
+            CALLE: 'CALLE/AVENIDA',
+            NUMERO: 'NUMERO',
+            ACLARATORIA: 'ACLARATORIA (CALLE , DEPTO, ETC)',
+            SECTOR: 'SECTOR',
+            GENERO: 'GÉNERO',
+            ESTADO: 'ESTADO DEL CASO', // Usamos 'ESTADO DEL CASO' para el estado general
+            PRIORIDAD: 'PRIORIDAD',
+            // Columnas para información adicional que usaremos en las funciones auxiliares
+            PATOLOGIAS: 'PATOLOGÍAS DE BASE',
+            DEPENDENCIA_FISICA: 'NIVEL DE DEPENDENCIA FISICA',
+            RED_APOYO: 'RED FAMILIAR',
+            INGRESOS: 'TRAMO DE INGRESOS DEL ADULTO MAYOR',
+            VIVIENDA: 'TENENCIA DE LA VIVIENDA',
+            BENEFICIO_TELEASISTENCIA: 'TELEASISTENCIA',
+            BENEFICIO_HABITABILIDAD: 'HABITABILIDAD',
+            BENEFICIO_ALIMENTACION: 'TARJETA DE ALIMENTACIÓN',
+            ULTIMA_VISITA_ANO: 'AÑO V1',
+            ULTIMA_VISITA_MES: 'MES V1',
+            ULTIMA_VISITA_DIA: 'DÍA V1',
+            ULTIMA_VISITA_RESULTADO: 'RESULTADO V1',
+            // Nuevas columnas para más detalles
+            RESUMEN_CASO: 'RESUMEN DEL CASO',
+            ESTADO_CIVIL: 'ESTADO CIVIL',
+            NACIONALIDAD: 'NACIONALIDAD',
+            ESCOLARIDAD: 'ESCOLARIDAD',
+            DEPENDENCIA_COGNITIVA: 'NIVEL DE DEPENDENCIA COGNITIVA',
+            CUIDADORES: 'CUIDADOR/ES',
+            DERIVADO_POR: 'DERIVADO POR'
+        };
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', async function () {
+            caseModal = new bootstrap.Modal(document.getElementById('caseModal'));
+
+            // Cargar la configuración de la vista desde localStorage
+            loadViewConfig();
+
+
+            // Listeners que siempre deben estar activos
+            document.getElementById('closeDetail').addEventListener('click', closeDetailView);
+            document.getElementById('detailOverlay').addEventListener('click', closeDetailView);
+            document.getElementById('add-case-btn').addEventListener('click', openAddModal);
+            document.getElementById('saveCase').addEventListener('click', saveCase);
+            document.getElementById('loadNewFileLink').addEventListener('click', async function (e) {
+                e.preventDefault();
+                if (allCases.length > 0) {
+                    if (confirm('¿Estás seguro? Se perderán todos los cambios no guardados de la sesión actual.')) {
+                        sessionStorage.clear();
+                        await clearFileFromDB();
+                        location.reload();
+                    }
+                } else {
+                    location.reload();
+                }
+            });
+            document.getElementById('statsLink').addEventListener('click', function (event) {
+                if (allCases.length === 0) {
+                    event.preventDefault(); // Stop navigation
+                    alert('Por favor, cargue y procese un archivo de Excel primero para poder ver las estadísticas.');
+                } else {
+                    // Guardar los datos en localStorage para que la otra página los pueda leer
+                    sessionStorage.setItem('casesDataForStats', JSON.stringify(allCases));
+                    sessionStorage.setItem('excelHeaders', JSON.stringify(excelHeaders));
+                }
+            });
+            document.getElementById('mapLink').addEventListener('click', function (event) {
+                if (allCases.length === 0) {
+                    event.preventDefault(); // Stop navigation
+                    alert('Por favor, cargue y procese un archivo de Excel primero para poder ver el mapa.');
+                } else {
+                    // Guardar los datos en sessionStorage para que la otra página los pueda leer y para poder restaurar el estado al volver.
+                    sessionStorage.setItem('casesDataForMap', JSON.stringify(allCases)); // Para el mapa
+                    sessionStorage.setItem('casesDataForStats', JSON.stringify(allCases)); // Para restaurar estado
+                    sessionStorage.setItem('excelHeaders', JSON.stringify(excelHeaders)); // Para restaurar estado
+                }
+            });
+            document.getElementById('expandAllBtn').addEventListener('click', () => {
+                const collapses = document.querySelectorAll('#detailContent .accordion-collapse');
+                collapses.forEach(collapse => {
+                    const bsCollapse = bootstrap.Collapse.getInstance(collapse) || new bootstrap.Collapse(collapse, { toggle: false });
+                    bsCollapse.show();
+                });
+            });
+            document.getElementById('collapseAllBtn').addEventListener('click', () => {
+                const collapses = document.querySelectorAll('#detailContent .accordion-collapse');
+                collapses.forEach(collapse => {
+                    const bsCollapse = bootstrap.Collapse.getInstance(collapse) || new bootstrap.Collapse(collapse, { toggle: false });
+                    bsCollapse.hide();
+                });
+            });
+
+            // Cargar datos desde el servidor al iniciar
+            loadDataFromServer();
+            // Ya no se necesita restaurar desde storage, el servidor es la fuente de verdad.
+            // const stateRestored = await restoreStateFromStorage();
+
+        });
+
+        function loadViewConfig() {
+            const savedConfig = localStorage.getItem('expedienteConfig');
+            if (savedConfig) {
+                try {
+                    viewConfig = JSON.parse(savedConfig);
+                    if (!Array.isArray(viewConfig.categories)) viewConfig.categories = [];
+                    if (!viewConfig.dropdowns) viewConfig.dropdowns = {};
+                } catch (e) {
+                    console.error("Error al parsear la configuración de la vista:", e);
+                    viewConfig = { categories: [], dropdowns: {} };
+                }
+            }
+        }
+
+        async function loadDataFromServer() {
+            document.getElementById('loadingSpinner').classList.remove('d-none');
+            document.getElementById('uploadSection').classList.add('d-none');
+
+            try {
+                // Hacemos la petición a nuestro servidor local
+                const response = await fetch('http://192.168.1.104:3000/api/cases');
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Error del servidor: ${response.status}`);
+                }
+                const data = await response.json();
+
+                excelHeaders = data.headers;
+
+                // Guardamos los datos en sessionStorage para que las páginas de mapa y estadísticas funcionen
+                sessionStorage.setItem('excelHeaders', JSON.stringify(excelHeaders));
+
+                // Procesamos los datos recibidos
+                processExcelData(data.cases);
+
+            } catch (error) {
+                console.error('Error al cargar los datos desde el servidor:', error);
+                alert(`No se pudieron cargar los datos desde Google Sheets. Asegúrate de que el servidor esté corriendo y que la configuración de la API sea correcta. \n\nError: ${error.message}`);
+                // Mostrar un mensaje de error en la UI
+                const container = document.getElementById('casesContainer');
+                container.innerHTML = `<div class="col-12 text-center py-5">
+                    <h3 class="text-danger">Error de Conexión</h3>
+                    <p>No se pudo conectar con Google Sheets a través del servidor local.</p>
+                    <p>Por favor, revisa la consola del navegador (F12) y la terminal donde corre el servidor para más detalles.</p>
+                    <button class="btn btn-primary" onclick="location.reload()">Reintentar</button>
+                </div>`;
+            } finally {
+                document.getElementById('loadingSpinner').classList.add('d-none');
+            }
+        }
+
+
+
+
+
+        async function restoreStateFromStorage() {
+            const casesDataRaw = sessionStorage.getItem('casesDataForStats');
+            const headersRaw = sessionStorage.getItem('excelHeaders');
+            const fileData = await getFileFromDB().catch(e => {
+                console.error("Error getting file from IndexedDB:", e);
+                return null;
+            });
+
+            if (casesDataRaw && headersRaw && fileData) {
+                try {
+                    allCases = JSON.parse(casesDataRaw);
+                    excelHeaders = JSON.parse(headersRaw);
+
+                    originalFile = new File([fileData.buffer], fileData.name, { type: fileData.type });
+                    originalSheetName = fileData.sheetName;
+
+                    if (allCases.length > 0) {
+                        // Replicar la lógica de post-procesamiento
+                        document.getElementById('uploadSection').classList.add('d-none');
+                        document.getElementById('dataSection').classList.remove('d-none');
+                        document.getElementById('statsSection').classList.remove('d-none');
+                        document.getElementById('add-case-btn').style.display = 'block';
+
+                        updateStatistics();
+                        applyFilters();
+                        setupSearchAndFilters();
+
+                        updateExportButtonState(); // Actualiza el estado de los botones Guardar y Estadísticas
+                        document.getElementById('statsLink').classList.remove('disabled');
+
+                        // Comprobar si se debe mostrar un detalle específico
+                        const caseIdToShow = sessionStorage.getItem('showCaseDetailOnLoad');
+                        if (caseIdToShow) {
+                            const caseToShow = allCases.find(c => c.internal_id === caseIdToShow);
+                            if (caseToShow) {
+                                setTimeout(() => showCaseDetails(caseToShow), 250);
+                            }
+                            sessionStorage.removeItem('showCaseDetailOnLoad');
+                        }
+                        return true; // Estado restaurado
+                    }
+                } catch (e) {
+                    console.error("Error al restaurar el estado desde sessionStorage:", e);
+                    sessionStorage.removeItem('casesDataForStats');
+                    sessionStorage.removeItem('excelHeaders');
+                    await clearFileFromDB();
+                    return false;
+                }
+            }
+            return false; // No hay estado para restaurar
+        }
+
+        // Handle file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            originalFile = file; // Guardamos la referencia al archivo para usarlo al exportar
+            if (file) {
+                document.getElementById('fileInfo').style.display = 'block';
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('processFile').disabled = false;
+            }
+        }
+
+        // Process the Excel file
+        async function processExcelFile() {
+            if (!originalFile) {
+                alert('Por favor, selecciona un archivo Excel primero.');
+                return;
+            }
+
+            // Show loading spinner
+            document.getElementById('loadingSpinner').classList.remove('d-none');
+
+            try {
+                const workbook = new ExcelJS.Workbook();
+                const fileBuffer = await originalFile.arrayBuffer();
+                await workbook.xlsx.load(fileBuffer);
+                const worksheet = workbook.worksheets[0];
+                originalSheetName = worksheet.name;
+
+                let headerRowNumber = -1;
+                worksheet.eachRow((row, rowNumber) => {
+                    if (headerRowNumber > 0) return;
+                    const rowValues = [];
+                    row.eachCell({ includeEmpty: true }, cell => rowValues.push(cell.value ? cell.value.toString() : ''));
+                    if (rowValues.includes('ID') && rowValues.includes('NOMBRES') && rowValues.includes('RUT') && rowValues.includes('EXPEDIENTE')) {
+                        headerRowNumber = rowNumber;
+                    }
+                });
+
+                if (headerRowNumber === -1) {
+                    alert('Error: No se pudo encontrar la fila de encabezados. Verifique que el archivo contenga "ID", "NOMBRES", "RUT" y "EXPEDIENTE".');
+                    document.getElementById('loadingSpinner').classList.add('d-none');
+                    return;
+                }
+
+                // Guardar el archivo en IndexedDB para persistirlo entre navegaciones
+                await saveFileToDB({
+                    name: originalFile.name,
+                    type: originalFile.type,
+                    buffer: fileBuffer,
+                    sheetName: originalSheetName
+                });
+
+                const headerRow = worksheet.getRow(headerRowNumber);
+                excelHeaders = [];
+                headerRow.eachCell({ includeEmpty: true }, cell => excelHeaders.push(cell.value ? cell.value.toString() : ''));
+                while (excelHeaders.length > 0 && excelHeaders[excelHeaders.length - 1] === '') {
+                    excelHeaders.pop();
+                }
+
+                const jsonData = [];
+                worksheet.eachRow((row, rowNumber) => {
+                    if (rowNumber > headerRowNumber) {
+                        const rowObject = {};
+                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                            if (colNumber <= excelHeaders.length) {
+                                const header = excelHeaders[colNumber - 1];
+                                let value = cell.value;
+                                if (value && typeof value === 'object' && value.result) value = value.result;
+                                else if (value && typeof value === 'object' && value.text) value = value.text;
+                                rowObject[header] = value;
+                            }
+                        });
+                        jsonData.push(rowObject);
+                    }
+                });
+
+                processExcelData(jsonData);
+            } catch (error) {
+                console.error('Error processing Excel file with ExcelJS:', error);
+                alert('Error al procesar el archivo Excel. Por favor, revisa la consola del desarrollador (F12) para más detalles. Error: ' + error.message);
+            } finally {
+                document.getElementById('loadingSpinner').classList.add('d-none');
+            };
+        }
+
+        // Process the Excel data and convert to case objects
+        function processExcelData(data) {
+            allCases = [];
+
+            // --- INICIO: Código de depuración para verificar encabezados ---
+            if (data.length > 0) {
+                console.log("Encabezados recibidos del servidor:", excelHeaders);
+                console.log("Ejemplo de la primera fila de datos recibida:", data[0]);
+                // Comprobamos si el encabezado 'EXPEDIENTE' existe en la lista de encabezados
+                if (!excelHeaders.includes(COLUMNAS.EXPEDIENTE)) {
+                    console.error(`¡Error Crítico! El encabezado "${COLUMNAS.EXPEDIENTE}" no se encontró en los datos recibidos de Google Sheets. Los encabezados encontrados son:`, excelHeaders);
+                    alert(`Error de Configuración: El encabezado "${COLUMNAS.EXPEDIENTE}" no se encontró en la hoja de cálculo. Revisa la consola del navegador (F12) para ver los encabezados que sí se encontraron.`);
+                }
+            }
+            // --- FIN: Código de depuración ---
+
+            data.forEach((row, index) => {
+                try {
+                    // 1. FILTRAR CASOS: Solo procesamos filas que tengan un valor en la columna de expediente.
+                    // Esta es una comprobación más robusta que permite el número 0 como expediente válido.
+                    const expedienteValue = row[COLUMNAS.EXPEDIENTE];
+                    if (expedienteValue === undefined || expedienteValue === null || String(expedienteValue).trim() === '') {
+                        return; // Ignora esta fila y continúa con la siguiente.
+                    }
+
+                    // 2. EXTRAER DATOS: Usamos el objeto COLUMNAS para encontrar los datos.
+                    const nombreCompleto = `${row[COLUMNAS.NOMBRES] || ''} ${row[COLUMNAS.APELLIDO_PATERNO] || ''} ${row[COLUMNAS.APELLIDO_MATERNO] || ''}`.trim();
+
+                    const caso = {
+                        internal_id: `case-${Date.now()}-${index}`,
+                        rowIndex: row.rowIndex, // Guardamos el índice de la fila de la hoja de cálculo
+                        id: row[COLUMNAS.ID] || row[COLUMNAS.EXPEDIENTE], // Usamos el expediente como ID si no hay otra columna
+                        cod: row[COLUMNAS.EXPEDIENTE] || '',
+                        nombre: nombreCompleto || `Caso ${index + 1}`,
+                        rut: String(row[COLUMNAS.RUT] || ''),
+                        edad: calcularEdad(row[COLUMNAS.FECHA_NACIMIENTO]) || row['EDAD'] || 'No especificado', // Usa la columna EDAD si existe
+                        genero: row[COLUMNAS.GENERO] || 'No especificado',
+                        direccion: `${row[COLUMNAS.CALLE] || ''} ${row[COLUMNAS.NUMERO] || ''} ${row[COLUMNAS.ACLARATORIA] || ''}`.trim(),
+                        sector: row[COLUMNAS.SECTOR] || 'N/A',
+                        estado: determinarEstado(row[COLUMNAS.ESTADO]),
+                        // Nos aseguramos que la prioridad y el teléfono sean strings para evitar errores con .toLowerCase() o .split()
+                        prioridad: String(row[COLUMNAS.PRIORIDAD] || 'Media'),
+                        fechaIngreso: formatearFecha(row[COLUMNAS.DIA], row[COLUMNAS.MES], row[COLUMNAS.ANO]),
+                        telefono: String(row[COLUMNAS.TELEFONO] || 'No disponible'),
+                        beneficios: determinarBeneficios(row),
+                        patologias: determinarPatologias(row),
+                        dependencia: determinarDependencia(row),
+                        redApoyo: determinarRedApoyo(row),
+                        ingresos: determinarIngresos(row),
+                        vivienda: determinarVivienda(row),
+                        // Nuevos campos para la vista de detalles
+                        resumen: row[COLUMNAS.RESUMEN_CASO] || 'No especificado',
+                        estadoCivil: row[COLUMNAS.ESTADO_CIVIL] || 'No especificado',
+                        nacionalidad: row[COLUMNAS.NACIONALIDAD] || 'No especificado',
+                        escolaridad: row[COLUMNAS.ESCOLARIDAD] || 'No especificado',
+                        dependenciaCognitiva: row[COLUMNAS.DEPENDENCIA_COGNITIVA] || 'No especificado',
+                        cuidadores: row[COLUMNAS.CUIDADORES] || 'No especificado',
+                        derivadoPor: row[COLUMNAS.DERIVADO_POR] || 'No especificado',
+                        ultimaVisita: determinarUltimaVisita(row),
+                    };
+
+                    // Combina la fila original con los datos procesados para tener todo disponible
+                    allCases.push({ ...row, ...caso });
+                } catch (e) {
+                    // Si una fila tiene un error, lo mostramos en la consola y continuamos con las demás.
+                    // Esto evita que todo el proceso de carga se detenga por una sola fila con datos incorrectos.
+                    console.error(`Error al procesar la fila ${index + 2} del Excel (índice ${index}). Saltando esta fila.`, e);
+                    console.log("Datos de la fila problemática:", row);
+                }
+            });
+
+            updateExportButtonState();
+
+            // --- RENDERIZACIÓN Y MANEJO DE ERRORES ---
+            try {
+                // Show data section and hide upload section
+                document.getElementById('uploadSection').classList.add('d-none');
+                document.getElementById('dataSection').classList.remove('d-none');
+                document.getElementById('statsSection').classList.remove('d-none');
+                document.getElementById('add-case-btn').style.display = 'block';
+
+                // Si no se procesó ningún caso, muestra un mensaje claro.
+                if (allCases.length === 0) {
+                    console.warn("No se procesó ningún caso válido. Revisa que la columna 'EXPEDIENTE' tenga datos.");
+                    const container = document.getElementById('casesContainer');
+                    container.innerHTML = `<div class="col-12 text-center py-5"><h3>No se encontraron casos válidos</h3><p>Por favor, asegúrate de que el archivo Excel tiene datos y que la columna "EXPEDIENTE" no está vacía para los casos que deseas cargar.</p></div>`;
+                    updateStatistics(); // Pone los contadores a 0
+                    return;
+                }
+
+                // Update statistics
+                updateStatistics();
+
+                // Set up search and filter functionality first, so all filter controls are ready.
+                setupSearchAndFilters();
+
+                // Renderiza los casos en todas las pestañas por primera vez
+                applyFilters();
+
+            } catch (e) {
+                console.error("Error fatal durante la renderización de los casos. Revisa las funciones de renderizado.", e);
+                alert("Se produjo un error al intentar mostrar los datos. Por favor, revisa la consola (F12) para más detalles.");
+            }
+        }
+
+        // Helper functions for data processing
+        function calcularEdad(fechaNacimiento) {
+            if (!fechaNacimiento) return null;
+
+            let birthDate;
+
+            // 1. Si ya es un objeto de fecha, lo usamos directamente.
+            if (fechaNacimiento instanceof Date) {
+                birthDate = fechaNacimiento;
+                // 2. Si es un número, lo tratamos como una fecha de serie de Excel.
+            } else if (typeof fechaNacimiento === 'number') {
+                birthDate = new Date(Math.round((fechaNacimiento - 25569) * 86400 * 1000));
+            } else if (typeof fechaNacimiento === 'string') {
+                // Intenta parsear strings como 'dd/mm/yyyy'
+                // Intenta parsear strings como 'dd/mm/yyyy' o 'yyyy-mm-dd'
+                const parts = fechaNacimiento.split(/[\/\-]/);
+                if (parts.length === 3) {
+                    let day, month, year;
+                    // Detectar formato YYYY-MM-DD
+                    if (parts[0].length === 4) {
+                        year = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10);
+                        day = parseInt(parts[2], 10);
+                    } else { // Asumir formato DD-MM-YYYY
+                        day = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10);
+                        year = parseInt(parts[2], 10);
+                    }
+
+                    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                        birthDate = new Date(year, month - 1, day);
+                    }
+                }
+            }
+
+            if (birthDate && !isNaN(birthDate)) {
+                const today = new Date();
+                let years = today.getFullYear() - birthDate.getFullYear();
+                let months = today.getMonth() - birthDate.getMonth();
+
+                if (today.getDate() < birthDate.getDate()) {
+                    months--;
+                }
+
+                if (months < 0) {
+                    years--;
+                    months += 12;
+                }
+
+                if (years < 0) return null;
+
+                // Devolver una cadena de texto formateada con años y meses.
+                let ageString = `${years} año${years !== 1 ? 's' : ''}`;
+                if (months > 0) {
+                    ageString += ` y ${months} mes${months !== 1 ? 'es' : ''}`;
+                }
+                return ageString;
+            }
+            return null; // No se pudo calcular
+        }
+
+        function formatRut(rutBody) {
+            if (!rutBody) return '';
+            // This regex adds a dot as a thousands separator to a string of numbers.
+            return String(rutBody).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function determinarEstado(estadoData) {
+            // Si la celda está vacía o no tiene datos, se considera en seguimiento.
+            if (!estadoData) {
+                return 'Seguimiento';
+            }
+
+            // Convertimos el dato a texto, lo limpiamos y lo pasamos a minúsculas para una comparación segura.
+            const estadoLower = String(estadoData).trim().toLowerCase();
+
+            // Identifica los estados "Cerrado" y "Proceso".
+            if (estadoLower.includes('cerrado')) return 'Cerrado';
+            if (estadoLower.includes('proceso')) return 'Proceso';
+
+            // Cualquier otro valor (como "Activo", "Vigente", etc.) se considera "Seguimiento".
+            return 'Seguimiento';
+        }
+
+        function formatearFecha(dia, mes, año) {
+            return `${String(dia || '01').padStart(2, '0')}-${String(mes || '01').padStart(2, '0')}-${año || '2023'}`;
+        }
+
+        function determinarBeneficios(row) {
+            const beneficios = [];
+            if (row['TELEASISTENCIA'] && String(row['TELEASISTENCIA']).toLowerCase().includes('si')) beneficios.push('Teleasistencia');
+            if (row['HABITABILIDAD'] && String(row['HABITABILIDAD']).toLowerCase().includes('si')) beneficios.push('Habitabilidad');
+            if (row['TARJETA DE ALIMENTACIÓN'] && String(row['TARJETA DE ALIMENTACIÓN']).toLowerCase().includes('si')) beneficios.push('Alimentación');
+            return beneficios.length > 0 ? beneficios : ['No especificado'];
+        }
+
+        function determinarPatologias(row) {
+            const patologias = row['PATOLOGÍAS DE BASE'];
+            if (typeof patologias === 'string' && patologias.trim() !== '') {
+                return patologias.split(/[,;]/).map(p => p.trim());
+            }
+            return ['No especificado'];
+        }
+
+        function determinarDependencia(row) {
+            return row['NIVEL DE DEPENDENCIA FISICA'] || 'No especificado';
+        }
+
+        function determinarRedApoyo(row) {
+            return row['RED FAMILIAR'] || 'No especificado';
+        }
+
+        function determinarIngresos(row) {
+            return row['TRAMO DE INGRESOS DEL ADULTO MAYOR'] || 'No especificado';
+        }
+
+        function determinarVivienda(row) {
+            return row['TENENCIA DE LA VIVIENDA'] || 'No especificado';
+        }
+
+        function determinarUltimaVisita(row) {
+            const dia = row['DÍA V1'];
+            const mes = row['MES V1'];
+            const ano = row['AÑO V1'];
+            const resultado = row['RESULTADO V1'];
+
+            if (dia && mes && ano) {
+                return `Fecha: ${formatearFecha(dia, mes, ano)}. Resultado: ${resultado || 'No especificado'}`;
+            }
+            return 'Sin registro de visita';
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            const total = allCases.length;
+            const cerrados = allCases.filter(c => c.estado === 'Cerrado').length;
+            const enProceso = allCases.filter(c => c.estado === 'Proceso').length;
+            const enSeguimiento = allCases.filter(c => c.estado === 'Seguimiento').length;
+            const activos = enProceso + enSeguimiento;
+            const prioridadAlta = allCases.filter(c => c.prioridad === 'Alta').length;
+
+            document.getElementById('totalCases').textContent = total;
+            document.getElementById('activeCases').textContent = activos;
+            document.getElementById('inProcessCases').textContent = enProceso;
+            document.getElementById('inTrackingCases').textContent = enSeguimiento;
+            document.getElementById('closedCases').textContent = cerrados;
+            document.getElementById('highPriorityCases').textContent = prioridadAlta;
+        }
+
+        // Actualiza el contador de casos visibles basándose en la pestaña activa.
+        function updateVisibleCount() {
+            // Usamos un pequeño timeout para dar tiempo a que el DOM se actualice, especialmente después de cambiar de pestaña.
+            setTimeout(() => {
+                const activeTabPane = document.querySelector('#casesTabContent .tab-pane.active');
+                if (activeTabPane) {
+                    const visibleCases = activeTabPane.querySelectorAll('.case-card').length;
+                    document.getElementById('visibleCasesCount').textContent = `${visibleCases} casos mostrados`;
+                }
+            }, 50);
+        }
+
+        function getSelectedFilterValues(ulId) {
+            const selected = [];
+            document.querySelectorAll(`#${ulId} .form-check-input:checked`).forEach(checkbox => {
+                selected.push(checkbox.value);
+            });
+            return selected;
+        }
+
+        function updateDropdownButtonText(ulId, btnId, defaultText = 'Todos') {
+            const selectedValues = getSelectedFilterValues(ulId);
+            const button = document.getElementById(btnId);
+            if (selectedValues.length === 0) {
+                button.textContent = defaultText;
+            } else if (selectedValues.length === 1) {
+                button.textContent = selectedValues[0];
+            } else {
+                button.textContent = `${selectedValues.length} seleccionados`;
+            }
+        }
+
+        function populateMultiSelectFilter(ulElement, fieldKey, isYear = false) {
+            let uniqueValues;
+            if (isYear) {
+                uniqueValues = [...new Set(allCases.map(c => c.fechaIngreso ? c.fechaIngreso.split('-')[2] : null).filter(Boolean))].sort((a, b) => b - a);
+            } else {
+                uniqueValues = [...new Set(allCases.map(c => c[fieldKey] || 'No especificado'))].sort();
+            }
+
+            ulElement.innerHTML = '';
+            uniqueValues.forEach(value => {
+                const li = document.createElement('li');
+                li.className = 'dropdown-item';
+                const inputId = `filter-${fieldKey}-${String(value).replace(/[^a-zA-Z0-9]/g, '')}`;
+                li.innerHTML = `<div class="form-check"><input class="form-check-input" type="checkbox" value="${value}" id="${inputId}"><label class="form-check-label" for="${inputId}">${value}</label></div>`;
+                li.addEventListener('click', (e) => e.stopPropagation());
+                li.querySelector('input').addEventListener('change', () => { updateDropdownButtonText(ulElement.id, ulElement.id.replace('List', 'Btn')); applyFilters(); });
+                ulElement.appendChild(li);
+            });
+        }
+
+        function populateIncompleteFilter() {
+            const list = document.getElementById('incompleteColumnsList');
+            if (!list) return;
+
+            list.innerHTML = `
+                <div class="px-2 pb-2 border-bottom mb-2">
+                    <button type="button" class="btn btn-sm btn-link p-0" id="selectAllIncomplete">Seleccionar todo</button> |
+                    <button type="button" class="btn btn-sm btn-link p-0" id="deselectAllIncomplete">Deseleccionar todo</button>
+                </div>
+            `;
+            excelHeaders.forEach(header => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                const fieldId = `check-${header.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                div.innerHTML = `
+                    <input class="form-check-input incomplete-column-check" type="checkbox" value="${header}" id="${fieldId}" checked>
+                    <label class="form-check-label small" for="${fieldId}">${header}</label>
+                `;
+                list.appendChild(div);
+            });
+
+            // Add event listeners
+            document.getElementById('selectAllIncomplete').addEventListener('click', () => {
+                list.querySelectorAll('.incomplete-column-check').forEach(cb => cb.checked = true);
+                applyFilters();
+            });
+            document.getElementById('deselectAllIncomplete').addEventListener('click', () => {
+                list.querySelectorAll('.incomplete-column-check').forEach(cb => cb.checked = false);
+                applyFilters();
+            });
+            list.querySelectorAll('.incomplete-column-check').forEach(cb => {
+                cb.addEventListener('change', applyFilters);
+            });
+        }
+
+        // Set up search and filter functionality
+        function setupSearchAndFilters() {
+            // Search functionality
+            document.getElementById('searchButton').addEventListener('click', performSearch);
+            document.getElementById('searchInput').addEventListener('keyup', function (event) {
+                if (event.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            // Populate multi-select filters
+            populateMultiSelectFilter(document.getElementById('statusFilterList'), 'estado');
+            populateMultiSelectFilter(document.getElementById('priorityFilterList'), 'prioridad');
+            populateMultiSelectFilter(document.getElementById('sectorFilterList'), 'sector');
+            populateMultiSelectFilter(document.getElementById('yearFilterList'), null, true); // Special case for year
+
+            // Reset filters
+            document.getElementById('resetFilters').addEventListener('click', function () {
+                document.getElementById('searchInput').value = '';
+
+                // Clear checkboxes and update button texts
+                const filters = ['statusFilter', 'priorityFilter', 'sectorFilter', 'yearFilter'];
+                filters.forEach(filter => {
+                    const list = document.getElementById(`${filter}List`);
+                    list.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                    updateDropdownButtonText(list.id, `${filter}Btn`, filter === 'priorityFilter' ? 'Todas' : 'Todos');
+                });
+
+                applyFilters();
+            });
+
+            // Añadir listeners a las pestañas para actualizar el contador al cambiar de vista.
+            const tabButtons = document.querySelectorAll('#casesTab .nav-link');
+            tabButtons.forEach(tab => {
+                tab.addEventListener('shown.bs.tab', (event) => {
+                    updateVisibleCount();
+                    const incompleteFilterContainer = document.getElementById('incomplete-filter-container');
+                    if (event.target.id === 'incomplete-tab') {
+                        incompleteFilterContainer.style.display = 'block';
+                    } else {
+                        incompleteFilterContainer.style.display = 'none';
+                    }
+                });
+            });
+
+            // Populate and set up the filter for incomplete cases
+            populateIncompleteFilter();
+        }
+
+        // Render cases to the specified container
+        function renderCases(cases, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            if (cases.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center py-4"><p>No se encontraron casos</p></div>';
+                return;
+            }
+
+            cases.forEach(caso => {
+                const rut = caso['RUT'] || '';
+                const dv = caso['DV'];
+                const rutBodyFormatted = formatRut(rut);
+                // Formateamos el RUT para que se vea unificado, considerando 0 como DV válido.
+                const rutCompleto = (rut && (dv !== null && dv !== undefined && String(dv).trim() !== '')) ? `${rutBodyFormatted}-${dv}` : (rutBodyFormatted || 'Sin RUT');
+
+                const caseCard = document.createElement('div');
+                caseCard.className = 'col-md-6 col-lg-4 mb-4';
+                caseCard.innerHTML = `
+                    <div class="card case-card priority-${caso.prioridad.toLowerCase()} status-${caso.estado.toLowerCase()}">
+                        <div class="card-body d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h5 class="card-title">${caso.nombre}</h5>
+                                <span class="badge bg-${getStatusBadgeColor(caso.estado)}">${caso.estado}</span>
+                            </div>
+                            <p class="card-text mb-auto">
+                                <small class="text-muted">
+                                    <i class="fas fa-id-card me-1"></i> ${rutCompleto}<br>
+                                    <i class="fas fa-map-marker-alt me-1"></i> ${caso.direccion}<br>
+                                    <i class="fas fa-birthday-cake me-1"></i> ${typeof caso.edad === 'number' ? caso.edad + ' años' : caso.edad}<br>
+                                    <i class="fas fa-phone me-1"></i> ${caso.telefono.split(' - ')[0]}
+                                </small>
+                            </p>
+                            <div class="mt-2 d-flex justify-content-between align-items-center">
+                                 <span class="badge bg-${getPriorityBadgeColor(caso.prioridad)}">Prioridad ${caso.prioridad}</span>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary view-details" data-internal-id="${caso.internal_id}">
+                                        Detalles
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary edit-case" data-internal-id="${caso.internal_id}">
+                                        Editar
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger delete-case" data-internal-id="${caso.internal_id}">
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(caseCard);
+            });
+
+            // Add event listeners to new buttons
+            container.querySelectorAll('.view-details').forEach(button => {
+                button.addEventListener('click', function () {
+                    const internalId = this.dataset.internalId;
+                    const aCase = allCases.find(c => c.internal_id === internalId);
+                    if (aCase) {
+                        showCaseDetails(aCase);
+                    }
+                });
+            });
+            container.querySelectorAll('.edit-case').forEach(button => {
+                button.addEventListener('click', function () {
+                    openEditModal(this.dataset.internalId);
+                });
+            });
+            container.querySelectorAll('.delete-case').forEach(button => {
+                button.addEventListener('click', function () {
+                    deleteCase(this.dataset.internalId);
+                });
+            });
+        }
+
+        function getStatusBadgeColor(status) {
+            switch (status) {
+                case 'Seguimiento': return 'info';
+                case 'Cerrado': return 'success';
+                case 'Proceso': return 'warning';
+                default: return 'secondary';
+            }
+        }
+
+        function getPriorityBadgeColor(priority) {
+            switch (priority) {
+                case 'Alta': return 'danger';
+                case 'Media': return 'warning';
+                case 'Baja': return 'success';
+                default: return 'secondary';
+            }
+        }
+
+        function showCaseDetails(caso) {
+            if (!caso) {
+                console.error("showCaseDetails fue llamado con un caso inválido.");
+                return;
+            }
+            const detailNameEl = document.getElementById('detailName');
+            const ageInfo = (caso.edad && caso.edad !== 'No especificado') ?
+                `<small class="text-muted d-block fw-normal">${typeof caso.edad === 'number' ? caso.edad + ' años' : caso.edad}</small>` : '';
+
+            const hasAddress = caso[COLUMNAS.CALLE] && caso[COLUMNAS.NUMERO];
+            const mapButtonHtml = hasAddress ? `
+                <a href="mapa.html" class="btn btn-link btn-sm p-0 ms-2 show-on-map-btn" title="Ver en mapa" data-internal-id="${caso.internal_id}">
+                    <i class="fas fa-map-marker-alt text-primary"></i>
+                </a>` : '';
+
+            detailNameEl.innerHTML = `
+                <div>
+                    <div class="d-flex align-items-center flex-wrap">${caso.nombre}
+                        <span class="badge small-badge bg-${getStatusBadgeColor(caso.estado)} ms-3">${caso.estado}</span>
+                        <span class="badge small-badge bg-${getPriorityBadgeColor(caso.prioridad)} ms-2">Prioridad ${caso.prioridad}</span>
+                        ${mapButtonHtml}
+                    </div>
+                    ${ageInfo}
+                </div>
+            `;
+
+            const mapButton = detailNameEl.querySelector('.show-on-map-btn');
+            if (mapButton) {
+                mapButton.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    sessionStorage.setItem('casesDataForMap', JSON.stringify(allCases));
+                    sessionStorage.setItem('showCaseOnMap', this.dataset.internalId);
+                    window.open('mapa.html', '_blank');
+                });
+            }
+
+            const detailContentEl = document.getElementById('detailContent');
+            detailContentEl.innerHTML = ''; // Limpiar contenido anterior
+
+            const categoryFilterList = document.getElementById('categoryFilterList');
+            categoryFilterList.innerHTML = `
+                <div class="px-2 pb-2 border-bottom mb-2">
+                    <button type="button" class="btn btn-sm btn-link p-0" id="selectAllCategories">Seleccionar todo</button> |
+                    <button type="button" class="btn btn-sm btn-link p-0" id="deselectAllCategories">Deseleccionar todo</button>
+                </div>
+            `;
+
+            const addCategoryToFilter = (title) => {
+                const categoryId = `cat-filter-${title.replace(/[^a-zA-Z0-9]/g, '')}`;
+                const filterItemHTML = `<div class="form-check"><input class="form-check-input category-filter-check" type="checkbox" value="${title}" id="${categoryId}" checked><label class="form-check-label small" for="${categoryId}">${title}</label></div>`;
+                categoryFilterList.insertAdjacentHTML('beforeend', filterItemHTML);
+            };
+
+
+            const detailControls = document.getElementById('detail-controls');
+            const editBtn = document.getElementById('editFromDetailBtn');
+
+            // Si existe una configuración de vista con categorías, la usamos para generar un acordeón
+            if (viewConfig && viewConfig.categories && viewConfig.categories.length > 0) {
+                editBtn.onclick = () => openEditModal(caso.internal_id);
+                detailControls.style.display = 'flex'; // Mostrar controles
+                let accordionHtml = `<div class="accordion" id="accordion-details">`;
+                const usedHeaders = new Set();
+
+                // Crear una sección de acordeón por cada categoría
+                viewConfig.categories.forEach((cat, index) => {
+                    // Si la categoría es "meses", renderizar la vista Gantt
+                    if (cat.title.toLowerCase().includes('meses')) {
+                        addCategoryToFilter(cat.title);
+                        accordionHtml += `
+                            <div class="accordion-item" data-category-title="${cat.title}">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}">
+                                        ${cat.title}
+                                    </button>
+                                </h2>
+                                <div id="collapse-${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}">
+                                    <div class="accordion-body">
+                                        ${createGanttChart(cat.columns, caso)}
+                                    </div>
+                                </div>
+                            </div>`;
+                        cat.columns.forEach(colName => usedHeaders.add(colName));
+                    } else {
+                        // Renderizado normal para las demás categorías
+                        addCategoryToFilter(cat.title);
+                        let categoryContent = '';
+
+                        // --- INICIO DE LA MODIFICACIÓN: Unificar fecha de expediente y RUT ---
+                        const hasExpedienteDate = cat.columns.includes(COLUMNAS.DIA) && cat.columns.includes(COLUMNAS.MES) && cat.columns.includes(COLUMNAS.ANO);
+                        const hasRut = cat.columns.includes(COLUMNAS.RUT) && cat.columns.includes('DV');
+                        const hasFullAddress = cat.columns.includes(COLUMNAS.CALLE) && cat.columns.includes(COLUMNAS.NUMERO) && cat.columns.includes(COLUMNAS.ACLARATORIA);
+                        let expedienteDateRendered = false;
+                        let rutRendered = false;
+                        let addressRendered = false;
+
+                        cat.columns.forEach(colName => {
+                            usedHeaders.add(colName);
+                            let rendered = false;
+
+                            // Unificar Domicilio
+                            if (hasFullAddress && [COLUMNAS.CALLE, COLUMNAS.NUMERO, COLUMNAS.ACLARATORIA].includes(colName)) {
+                                if (!addressRendered) {
+                                    const addressParts = [
+                                        caso[COLUMNAS.CALLE],
+                                        caso[COLUMNAS.NUMERO],
+                                        caso[COLUMNAS.ACLARATORIA]
+                                    ].filter(Boolean).map(p => String(p).trim());
+                                    const direccionCompleta = addressParts.join(' ');
+                                    categoryContent += `<li class="list-group-item d-flex justify-content-between align-items-start"><div class="ms-2 me-auto"><div class="fw-bold">Domicilio</div>${direccionCompleta || '<span class="text-muted">N/A</span>'}</div></li>`;
+                                    addressRendered = true;
+                                }
+                                rendered = true;
+                            }
+
+                            // Unificar Fecha de Expediente
+                            if (hasExpedienteDate && [COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(colName)) {
+                                if (!expedienteDateRendered) {
+                                    const dia = caso[COLUMNAS.DIA], mes = caso[COLUMNAS.MES], ano = caso[COLUMNAS.ANO];
+                                    const fechaCompleta = (dia || mes || ano) ? formatearFecha(dia, mes, ano) : '<span class="text-muted">N/A</span>';
+                                    categoryContent += `<li class="list-group-item d-flex justify-content-between align-items-start"><div class="ms-2 me-auto"><div class="fw-bold">Fecha de Expediente</div>${fechaCompleta}</div></li>`;
+                                    expedienteDateRendered = true;
+                                }
+                                rendered = true;
+                            }
+
+                            // Unificar RUT
+                            if (hasRut && [COLUMNAS.RUT, 'DV'].includes(colName)) {
+                                if (!rutRendered) {
+                                    const rut = caso[COLUMNAS.RUT] || '';
+                                    const dv = caso['DV'];
+                                    const rutBodyFormatted = formatRut(rut);
+                                    const rutCompleto = (rut && (dv !== null && dv !== undefined && String(dv).trim() !== '')) ? `${rutBodyFormatted}-${dv}` : (rutBodyFormatted || 'Sin RUT');
+                                    categoryContent += `<li class="list-group-item d-flex justify-content-between align-items-start"><div class="ms-2 me-auto"><div class="fw-bold">RUT</div>${rutCompleto}</div></li>`;
+                                    rutRendered = true;
+                                }
+                                rendered = true;
+                            }
+
+                            // Renderizar otros campos
+                            if (!rendered) {
+                                let value = caso[colName];
+                                if (colName === COLUMNAS.FECHA_NACIMIENTO) {
+                                    value = formatDateForDisplay(value);
+                                }
+                                categoryContent += `<li class="list-group-item d-flex justify-content-between align-items-start"><div class="ms-2 me-auto"><div class="fw-bold">${colName}</div>${value || '<span class="text-muted">N/A</span>'}</div></li>`;
+                            }
+                        });
+                        // --- FIN DE LA MODIFICACIÓN ---
+
+                        if (categoryContent) {
+                            accordionHtml += `
+                                <div class="accordion-item" data-category-title="${cat.title}">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}">
+                                            ${cat.title}
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}">
+                                        <div class="accordion-body"><ul class="list-group list-group-flush">${categoryContent}</ul></div>
+                                    </div>
+                                </div>`;
+                        }
+                    }
+                });
+
+                // Agrupar los campos no categorizados en una sección final "Otros Datos"
+                const uncategorizedHeaders = excelHeaders.filter(h => !usedHeaders.has(h));
+                if (uncategorizedHeaders.length > 0) {
+                    addCategoryToFilter('Otros Datos');
+                    accordionHtml += `
+                        <div class="accordion-item" data-category-title="Otros Datos">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-uncat">
+                                    Otros Datos
+                                </button>
+                            </h2>
+                            <div id="collapse-uncat" class="accordion-collapse collapse">
+                                <div class="accordion-body">
+                                    <ul class="list-group list-group-flush">`;
+                    uncategorizedHeaders.forEach(colName => {
+                        let value = caso[colName];
+                        if (colName === COLUMNAS.FECHA_NACIMIENTO) {
+                            value = formatDateForDisplay(value);
+                        }
+                        const displayValue = Array.isArray(value) ? value.join(', ') : value;
+                        accordionHtml += `<li class="list-group-item"><strong>${colName}:</strong> ${displayValue || '<span class="text-muted">N/A</span>'}</li>`;
+                    });
+                    accordionHtml += `</ul></div></div></div>`;
+                }
+
+                accordionHtml += `</div>`;
+                detailContentEl.innerHTML = accordionHtml;
+            } else {
+                // Si no hay configuración, muestra una lista simple con todos los datos
+                editBtn.onclick = () => openEditModal(caso.internal_id);
+                detailControls.style.display = 'none'; // Ocultar controles
+                let listHtml = '<ul class="list-group list-group-flush">';
+                for (const key in caso) {
+                    // Evitar mostrar propiedades internas o duplicadas
+                    if (key !== 'internal_id' && !excelHeaders.includes(key)) {
+                        const value = caso[key];
+                        const displayValue = Array.isArray(value) ? value.join(', ') : value;
+                        listHtml += `<li class="list-group-item"><strong>${key}:</strong> ${displayValue}</li>`;
+                    }
+                }
+                // Mostrar también los datos originales del excel
+                excelHeaders.forEach(header => {
+                    let value = caso[header];
+                    if (header === COLUMNAS.FECHA_NACIMIENTO) {
+                        value = formatDateForDisplay(value);
+                    }
+                    const displayValue = Array.isArray(value) ? value.join(', ') : value;
+                    listHtml += `<li class="list-group-item"><strong>${header}:</strong> ${displayValue || '<span class="text-muted">N/A</span>'}</li>`;
+                });
+                listHtml += '</ul>';
+                detailContentEl.innerHTML = listHtml;
+            }
+
+            // Listeners para el nuevo filtro de categorías
+            document.getElementById('selectAllCategories').addEventListener('click', () => {
+                categoryFilterList.querySelectorAll('.category-filter-check').forEach(cb => cb.checked = true);
+                filterDetailCategories();
+            });
+            document.getElementById('deselectAllCategories').addEventListener('click', () => {
+                categoryFilterList.querySelectorAll('.category-filter-check').forEach(cb => cb.checked = false);
+                filterDetailCategories();
+            });
+            categoryFilterList.querySelectorAll('.category-filter-check').forEach(cb => {
+                cb.addEventListener('change', filterDetailCategories);
+            });
+
+
+
+            // Inicializar los tooltips de Bootstrap para la vista de meses
+            // Se hace después de que el HTML ha sido inyectado en el DOM.
+            const tooltipTriggerList = detailContentEl.querySelectorAll('[data-bs-toggle="tooltip"]');
+            [...tooltipTriggerList].forEach(tooltipTriggerEl => {
+                new bootstrap.Tooltip(tooltipTriggerEl, {
+                    trigger: 'click', // El tooltip aparece al hacer click
+                    html: true,       // Permite HTML en el contenido del tooltip
+                    boundary: detailContentEl // Mantiene el tooltip dentro del panel de detalles
+                });
+            });
+
+            document.getElementById('detailOverlay').classList.add('show');
+            document.getElementById('caseDetail').classList.add('show');
+        }
+
+        function filterDetailCategories() {
+            const visibleCategories = new Set();
+            document.querySelectorAll('#categoryFilterList .category-filter-check:checked').forEach(cb => {
+                visibleCategories.add(cb.value);
+            });
+
+            document.querySelectorAll('#detailContent .accordion-item').forEach(item => {
+                const categoryTitle = item.dataset.categoryTitle;
+                if (visibleCategories.has(categoryTitle)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function createGanttChart(monthColumns, caso) {
+            const monthsOrder = [
+                'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+            ];
+
+            const monthsHtml = monthsOrder.map(month => {
+                // Comprobamos si el mes (en mayúsculas) está incluido en las columnas de la categoría
+                const isMonthInConfig = monthColumns.some(col => col.toUpperCase() === month);
+                if (!isMonthInConfig) return '';
+
+                // Buscamos el nombre exacto de la columna (respetando may/min) para obtener el valor
+                const originalColName = monthColumns.find(col => col.toUpperCase() === month);
+
+                const rawValue = caso[originalColName];
+                const isActive = rawValue !== null && rawValue !== undefined && String(rawValue).trim() !== '';
+
+                // El valor a mostrar en el tooltip. Si está activo, muestra el contenido; si no, un mensaje.
+                // Se escapan las comillas dobles para evitar romper el atributo 'title'.
+                const safeValue = String(rawValue || '').replace(/"/g, '&quot;');
+                const tooltipValue = isActive ? `${originalColName}: ${safeValue}` : `${originalColName}: Sin registro`;
+                const monthAbbreviation = month.substring(0, 3);
+
+                return `
+                    <div class="gantt-month ${isActive ? 'active' : ''}" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="${tooltipValue}">
+                        ${monthAbbreviation}
+                    </div>`;
+            }).join('');
+
+            return `
+                <div class="gantt-chart-container">
+                    <div class="gantt-months">${monthsHtml}</div>
+                </div>
+            `;
+        }
+
+        function closeDetailView() {
+            // Ocultar y destruir cualquier instancia de tooltip activa dentro del panel de detalles
+            // para evitar que queden "flotando" en la pantalla.
+            const tooltipElements = document.querySelectorAll('#caseDetail [data-bs-toggle="tooltip"]');
+            tooltipElements.forEach(el => {
+                const tooltipInstance = bootstrap.Tooltip.getInstance(el);
+                if (tooltipInstance) {
+                    tooltipInstance.dispose(); // dispose() es mejor que hide() porque limpia la memoria.
+                }
+            });
+            document.getElementById('detailOverlay').classList.remove('show');
+            document.getElementById('caseDetail').classList.remove('show');
+        }
+
+        function performSearch() {
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const selectedStatuses = getSelectedFilterValues('statusFilterList');
+            const selectedPriorities = getSelectedFilterValues('priorityFilterList');
+            const selectedSectors = getSelectedFilterValues('sectorFilterList');
+            const selectedYears = getSelectedFilterValues('yearFilterList');
+
+            let filteredCases = allCases.filter(caso => {
+                // Search term filter
+                const matchesSearch = searchTerm === '' ||
+                    caso.nombre.toLowerCase().includes(searchTerm) ||
+                    caso.direccion.toLowerCase().includes(searchTerm) ||
+                    caso.cod.toLowerCase().includes(searchTerm) ||
+                    (caso.rut && caso.rut.includes(searchTerm));
+
+                // Status filter
+                const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(caso.estado);
+
+                // Priority filter
+                const matchesPriority = selectedPriorities.length === 0 || selectedPriorities.includes(caso.prioridad);
+
+                // Sector filter
+                const matchesSector = selectedSectors.length === 0 || selectedSectors.includes(caso.sector);
+
+                // Year filter
+                const caseYear = caso.fechaIngreso ? caso.fechaIngreso.split('-')[2] : null;
+                const matchesYear = selectedYears.length === 0 || (caseYear && selectedYears.includes(caseYear));
+
+                return matchesSearch && matchesStatus && matchesPriority && matchesSector && matchesYear;
+            });
+
+            // Re-render ALL tabs with the filtered data
+            const activeTabPane = document.querySelector('.tab-pane.fade.show.active');
+
+            // Update the content of all tabs based on the new filter
+            renderCases(filteredCases, 'casesContainer');
+            renderCases(filteredCases.filter(c => c.estado === 'Seguimiento'), 'activeCasesContainer');
+            renderCases(filteredCases.filter(c => c.estado === 'Cerrado'), 'closedCasesContainer');
+            renderCases(filteredCases.filter(c => c.prioridad === 'Alta'), 'highPriorityContainer');
+            renderCases(filteredCases.filter(c => c.patologias && c.patologias.some(p => p.includes('VIF'))), 'vifCasesContainer');
+
+            // Filtrar y renderizar casos incompletos
+            const columnsToCheck = [];
+            document.querySelectorAll('#incompleteColumnsList .incomplete-column-check:checked').forEach(cb => {
+                columnsToCheck.push(cb.value);
+            });
+
+            if (columnsToCheck.length > 0) {
+                const incompleteCases = filteredCases.filter(caso => {
+                    // Un caso es incompleto si AL MENOS UNA de las columnas seleccionadas está vacía.
+                    return columnsToCheck.some(header => {
+                        const value = caso[header];
+                        return value === null || value === undefined || String(value).trim() === '';
+                    });
+                });
+                renderCases(incompleteCases, 'incompleteCasesContainer');
+            } else {
+                renderCases([], 'incompleteCasesContainer');
+            }
+
+            // Ensure the currently active tab remains visible. This prevents a "blank screen" if no tab is active.
+            if (activeTabPane) {
+                const tabButton = document.querySelector(`button[data-bs-target="#${activeTabPane.id}"]`);
+                if (tabButton) new bootstrap.Tab(tabButton).show();
+            }
+
+            // Actualizar el contador de casos para que refleje la pestaña activa.
+            updateVisibleCount();
+        }
+
+        // --- Funciones de Edición, Creación y Eliminación ---
+
+        function generateFormFields(caso = {}) {
+            const form = document.getElementById('caseForm');
+            form.innerHTML = '';
+            form.dataset.internalId = caso.internal_id || '';
+            const processedHeaders = new Set();
+
+            // Determinar si debemos usar el campo de fecha compuesto.
+            const useCompositeDate = excelHeaders.includes(COLUMNAS.DIA) && excelHeaders.includes(COLUMNAS.MES) && excelHeaders.includes(COLUMNAS.ANO);
+
+            // Si hay configuración, agrupar por categorías
+            if (viewConfig && viewConfig.categories && viewConfig.categories.length > 0) {
+                viewConfig.categories.forEach(cat => {
+                    let categoryFieldsHtml = '';
+                    let compositeDateRendered = false;
+
+                    cat.columns.forEach(header => {
+                        if (useCompositeDate && [COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(header)) {
+                            if (!compositeDateRendered) {
+                                const dia = caso[COLUMNAS.DIA] || '', mes = caso[COLUMNAS.MES] || '', ano = caso[COLUMNAS.ANO] || '';
+                                let dateValue = (ano && mes && dia) ? `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}` : '';
+                                categoryFieldsHtml += `<div class="col-md-6 col-lg-4"><label for="field-fecha-ingreso" class="form-label fw-light">Fecha de Ingreso</label><input type="date" class="form-control ${dateValue ? '' : 'empty-field'}" id="field-fecha-ingreso" data-composite-field="fecha-ingreso" value="${dateValue}"></div>`;
+                                compositeDateRendered = true;
+                            }
+                        } else {
+                            categoryFieldsHtml += createSingleFieldHtml(header, caso);
+                        }
+                        processedHeaders.add(header);
+                    });
+
+                    if (categoryFieldsHtml) {
+                        form.innerHTML += `<fieldset class="border p-3 mb-4 col-12"><legend class="w-auto px-2">${cat.title}</legend><div class="row g-3">${categoryFieldsHtml}</div></fieldset>`;
+                    }
+                });
+
+                // Campos no categorizados
+                const uncategorizedHeaders = excelHeaders.filter(h => !processedHeaders.has(h) && ![COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(h));
+                if (uncategorizedHeaders.length > 0) {
+                    let otherFieldsHtml = uncategorizedHeaders.map(header => createSingleFieldHtml(header, caso)).join('');
+                    form.innerHTML += `<fieldset class="border p-3 mb-4 col-12"><legend class="w-auto px-2">Otros Datos</legend><div class="row g-3">${otherFieldsHtml}</div></fieldset>`;
+                }
+            } else {
+                // Si no hay configuración, mostrar todos los campos en una lista plana
+                let allFieldsHtml = '';
+                if (useCompositeDate) {
+                    const dia = caso[COLUMNAS.DIA] || '', mes = caso[COLUMNAS.MES] || '', ano = caso[COLUMNAS.ANO] || '';
+                    let dateValue = (ano && mes && dia) ? `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}` : '';
+                    allFieldsHtml += `<div class="col-md-6 col-lg-4"><label for="field-fecha-ingreso" class="form-label fw-light">Fecha de Ingreso</label><input type="date" class="form-control ${dateValue ? '' : 'empty-field'}" id="field-fecha-ingreso" data-composite-field="fecha-ingreso" value="${dateValue}"></div>`;
+                }
+                excelHeaders.forEach(header => {
+                    if (!useCompositeDate || ![COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(header)) {
+                        allFieldsHtml += createSingleFieldHtml(header, caso);
+                    }
+                });
+                form.innerHTML = allFieldsHtml;
+            }
+
+            // --- INICIO DE LA MODIFICACIÓN: Lógica para autocompletar la edad ---
+            const dobInput = form.querySelector(`[data-header="${COLUMNAS.FECHA_NACIMIENTO}"]`);
+            const ageInput = form.querySelector(`[data-header="EDAD"]`);
+
+            if (dobInput && ageInput) {
+                // Hacer el campo de edad de solo lectura para evitar edición manual
+                ageInput.readOnly = true;
+                ageInput.style.backgroundColor = '#e9ecef'; // Un gris claro para indicar que no es editable
+                ageInput.title = 'Este campo se calcula automáticamente.';
+
+                dobInput.addEventListener('change', () => {
+                    const dobValue = dobInput.value; // El formato del input date es YYYY-MM-DD
+                    if (dobValue) {
+                        const ageInYears = calcularEdad(dobValue);
+                        ageInput.value = ageInYears !== null ? ageInYears : '';
+                        if (ageInYears !== null) ageInput.classList.remove('empty-field');
+                    } else {
+                        ageInput.value = '';
+                    }
+                });
+            }
+            // --- FIN DE LA MODIFICACIÓN ---
+
+            // --- INICIO DE LA MODIFICACIÓN: Formato dinámico para RUT ---
+            const rutInput = form.querySelector(`[data-header="${COLUMNAS.RUT}"]`);
+            if (rutInput) {
+                rutInput.addEventListener('input', (e) => {
+                    const start = e.target.selectionStart;
+                    const originalLength = e.target.value.length;
+                    const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                    const formattedValue = formatRut(numericValue);
+                    e.target.value = formattedValue;
+                    const newLength = e.target.value.length;
+                    const diff = newLength - originalLength;
+                    e.target.setSelectionRange(start + diff, start + diff);
+                });
+            }
+            // --- FIN DE LA MODIFICACIÓN ---
+        }
+
+        function createSingleFieldHtml(header, caso) {
+            if (header === 'internal_id') return '';
+            let value = caso[header] || '';
+            const fieldId = `field-${header.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+            if (header === COLUMNAS.FECHA_NACIMIENTO) value = formatDateForDisplay(value);
+            const emptyClass = String(value).trim() === '' ? 'empty-field' : '';
+
+            const dropdownOptions = viewConfig.dropdowns ? viewConfig.dropdowns[header] : null;
+
+            // Convertir el campo de Fecha de Nacimiento a un input de tipo 'date'.
+            if (header === COLUMNAS.FECHA_NACIMIENTO) {
+                const dateValue = formatDateForInput(value);
+                return `<div class="col-md-6 col-lg-4"><label for="${fieldId}" class="form-label fw-light">${header}</label><input type="date" class="form-control ${dateValue ? '' : 'empty-field'}" id="${fieldId}" data-header="${header}" value="${dateValue}"></div>`;
+            }
+
+            if (dropdownOptions && Array.isArray(dropdownOptions)) {
+                let optionsHtml = '<option value="">Seleccione...</option>';
+                dropdownOptions.forEach(opt => {
+                    optionsHtml += `<option value="${opt}" ${String(opt) === String(value) ? 'selected' : ''}>${opt}</option>`;
+                });
+                return `<div class="col-md-6 col-lg-4"><label for="${fieldId}" class="form-label fw-light">${header}</label><select class="form-select ${emptyClass}" id="${fieldId}" data-header="${header}">${optionsHtml}</select></div>`;
+            }
+
+            if (header === COLUMNAS.RESUMEN_CASO) {
+                return `<div class="col-12"><label for="${fieldId}" class="form-label fw-light">${header}</label><textarea class="form-control ${emptyClass}" id="${fieldId}" data-header="${header}" rows="5">${value}</textarea></div>`;
+            }
+
+            // Formatear el valor del RUT para visualización, pero usar el valor original para la clase 'empty-field'
+            let displayValue = value;
+            if (header === COLUMNAS.RUT) {
+                displayValue = formatRut(value);
+            }
+
+            return `<div class="col-md-6 col-lg-4"><label for="${fieldId}" class="form-label fw-light">${header}</label><input type="text" class="form-control ${emptyClass}" id="${fieldId}" data-header="${header}" value="${displayValue}"></div>`;
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Agregar Nuevo Expediente';
+            generateFormFields();
+            caseModal.show();
+        }
+
+        function openEditModal(internalId) {
+            const caso = allCases.find(c => c.internal_id === internalId);
+            if (!caso) {
+                console.error("Caso no encontrado para editar:", internalId);
+                return;
+            }
+            document.getElementById('modalTitle').textContent = 'Editar Expediente';
+            generateFormFields(caso);
+            caseModal.show();
+        }
+
+        function saveCase() {
+            const form = document.getElementById('caseForm');
+            const internalId = form.dataset.internalId;
+            let newCaseData = {};
+
+            form.querySelectorAll('input, textarea, select').forEach(input => {
+                // --- INICIO DE LA MODIFICACIÓN ---
+                // Manejo especial para el campo de fecha compuesto
+                if (input.dataset.compositeField === 'fecha-ingreso') {
+                    if (input.value) {
+                        // El valor de un input[type=date] es 'YYYY-MM-DD'
+                        const [year, month, day] = input.value.split('-');
+                        newCaseData[COLUMNAS.ANO] = year;
+                        newCaseData[COLUMNAS.MES] = month;
+                        newCaseData[COLUMNAS.DIA] = day;
+                    } else {
+                        // Si el campo de fecha se deja vacío, limpiar los datos correspondientes.
+                        newCaseData[COLUMNAS.ANO] = '';
+                        newCaseData[COLUMNAS.MES] = '';
+                        newCaseData[COLUMNAS.DIA] = '';
+                    }
+                } else {
+                    // Lógica existente para todos los demás campos.
+                    const header = input.dataset.header;
+                    if (header) {
+                        let valueToSave = input.value;
+                        if (header === COLUMNAS.FECHA_NACIMIENTO && input.value) {
+                            const [year, month, day] = input.value.split('-');
+                            valueToSave = `${day}-${month}-${year}`;
+                        } else if (header === COLUMNAS.RUT) {
+                            // Para el RUT, quitamos los puntos antes de guardar.
+                            valueToSave = input.value.replace(/\./g, '');
+                        }
+                        newCaseData[header] = valueToSave;
+                    }
+                }
+                // --- FIN DE LA MODIFICACIÓN ---
+            });
+
+            if (internalId) { // Editando
+                const index = allCases.findIndex(c => c.internal_id === internalId);
+                if (index !== -1) {
+                    const updatedCaseRaw = { ...allCases[index], ...newCaseData };
+                    const reprocessedData = reprocessCaseData(updatedCaseRaw);
+                    allCases[index] = { ...updatedCaseRaw, ...reprocessedData };
+                }
+            } else { // Agregando
+                newCaseData.internal_id = `case-${Date.now()}`;
+                const processedData = reprocessCaseData(newCaseData);
+                allCases.push({ ...newCaseData, ...processedData });
+            }
+
+            caseModal.hide();
+            updateStatistics();
+            applyFilters();
+            updateExportButtonState();
+        }
+
+        function deleteCase(internalId) {
+            if (confirm('¿Estás seguro de que deseas eliminar este caso? Esta acción no se puede deshacer.')) {
+                allCases = allCases.filter(c => c.internal_id !== internalId);
+                updateStatistics();
+                applyFilters();
+                updateExportButtonState();
+            }
+        }
+
+        // Helper para re-procesar datos después de editar/agregar y recalcular campos derivados
+        function reprocessCaseData(row) {
+            const nombreCompleto = `${row[COLUMNAS.NOMBRES] || ''} ${row[COLUMNAS.APELLIDO_PATERNO] || ''} ${row[COLUMNAS.APELLIDO_MATERNO] || ''}`.trim();
+
+            return {
+                id: row[COLUMNAS.ID] || row[COLUMNAS.EXPEDIENTE],
+                rowIndex: row.rowIndex, // Mantener el índice de la fila
+                cod: row[COLUMNAS.EXPEDIENTE] || '',
+                nombre: nombreCompleto || `Caso nuevo`,
+                rut: String(row[COLUMNAS.RUT] || ''),
+                edad: calcularEdad(row[COLUMNAS.FECHA_NACIMIENTO]) || row['EDAD'] || 'No especificado',
+                genero: row[COLUMNAS.GENERO] || 'No especificado',
+                direccion: `${row[COLUMNAS.CALLE] || ''} ${row[COLUMNAS.NUMERO] || ''} ${row[COLUMNAS.ACLARATORIA] || ''}`.trim(),
+                sector: row[COLUMNAS.SECTOR] || 'N/A',
+                estado: determinarEstado(row[COLUMNAS.ESTADO]),
+                prioridad: String(row[COLUMNAS.PRIORIDAD] || 'Media'),
+                fechaIngreso: formatearFecha(row[COLUMNAS.DIA], row[COLUMNAS.MES], row[COLUMNAS.ANO]),
+                telefono: String(row[COLUMNAS.TELEFONO] || 'No disponible'),
+                beneficios: determinarBeneficios(row),
+                patologias: determinarPatologias(row),
+                dependencia: determinarDependencia(row),
+                redApoyo: determinarRedApoyo(row),
+                ingresos: determinarIngresos(row),
+                vivienda: determinarVivienda(row),
+                resumen: row[COLUMNAS.RESUMEN_CASO] || 'No especificado',
+                estadoCivil: row[COLUMNAS.ESTADO_CIVIL] || 'No especificado',
+                nacionalidad: row[COLUMNAS.NACIONALIDAD] || 'No especificado',
+                escolaridad: row[COLUMNAS.ESCOLARIDAD] || 'No especificado',
+                dependenciaCognitiva: row[COLUMNAS.DEPENDENCIA_COGNITIVA] || 'No especificado',
+                cuidadores: row[COLUMNAS.CUIDADORES] || 'No especificado',
+                derivadoPor: row[COLUMNAS.DERIVADO_POR] || 'No especificado',
+                ultimaVisita: determinarUltimaVisita(row),
+            };
+        }
+
+        function formatDateForInput(dateValue) {
+            if (!dateValue) return '';
+
+            let date;
+            if (dateValue instanceof Date) {
+                date = dateValue;
+            } else if (typeof dateValue === 'number') { // Excel date serial number
+                date = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
+            } else if (typeof dateValue === 'string') {
+                const parts = dateValue.split(/[\/\-]/);
+                if (parts.length === 3) {
+                    // Se asume que el formato de texto es siempre DD-MM-YYYY o DD/MM/YYYY
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10);
+                    const year = parseInt(parts[2], 10);
+                    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                        date = new Date(year, month - 1, day);
+                    }
+                }
+            }
+
+            if (date && !isNaN(date.getTime())) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            return ''; // Return empty if parsing fails
+        }
+
+        function formatDateForDisplay(dateValue) {
+            if (!dateValue) return '';
+
+            let date;
+
+            if (dateValue instanceof Date) {
+                date = dateValue;
+            } else if (typeof dateValue === 'number') {
+                // Handle Excel serial date
+                date = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
+            } else if (typeof dateValue === 'string') {
+                const parts = dateValue.split('T')[0].split(/[\/\-]/); // Split by T first to handle ISO strings
+                if (parts.length === 3) {
+                    let day, month, year;
+                    // Check if the first part is a 4-digit year (YYYY-MM-DD)
+                    if (parts[0].length === 4) {
+                        year = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10);
+                        day = parseInt(parts[2], 10);
+                    } else { // Assume DD-MM-YYYY
+                        day = parseInt(parts[0], 10);
+                        month = parseInt(parts[1], 10);
+                        year = parseInt(parts[2], 10);
+                    }
+
+                    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && year > 1000) {
+                        date = new Date(year, month - 1, day);
+                    }
+                }
+            }
+
+            // If we have a valid date object, format it
+            if (date && !isNaN(date.getTime())) {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}-${month}-${year}`;
+            }
+
+            // If all parsing fails, return the original value as a string
+            return String(dateValue);
+        }
+
+        function parseValueForExcel(value, header) {
+            if (value === null || value === undefined) {
+                return null;
+            }
+
+            // Manejo especial para la columna de fecha de nacimiento para asegurar el formato DD-MM-YYYY.
+            if (header === COLUMNAS.FECHA_NACIMIENTO) {
+                // Reutilizamos la función de visualización que ya es robusta para manejar
+                // objetos Date, números de serie de Excel, y strings en varios formatos.
+                const formattedDate = formatDateForDisplay(value);
+                // Si la fecha se pudo formatear, la devolvemos. Si no, devolvemos el valor original.
+                return formattedDate || value;
+            }
+
+            // Para otras columnas, si es un número o una fecha, devolverlo tal cual.
+            if (typeof value === 'number' || value instanceof Date) {
+                return value;
+            }
+
+            // Si es un string, intentar convertirlo a número si es puramente numérico.
+            if (typeof value === 'string') {
+                const trimmedValue = value.trim();
+                if (trimmedValue !== '' && /^-?\d+(\.\d+)?$/.test(trimmedValue)) {
+                    return Number(trimmedValue);
+                }
+            }
+            return value;
+        }
+
+        function updateExportButtonState() {
+            const btn = document.getElementById('exportExcelBtn');
+            const statsBtn = document.getElementById('statsLink');
+            const mapBtn = document.getElementById('mapLink');
+
+            if (allCases.length > 0) {
+                btn.classList.remove('disabled');
+                btn.disabled = false;
+                statsBtn.classList.remove('disabled');
+                mapBtn.classList.remove('disabled');
+
+                // Como ahora siempre guardamos en el servidor, el texto es consistente.
+                btn.innerHTML = '<i class="fas fa-save me-1"></i> Guardar Cambios';
+                btn.title = "Guardar cambios en Google Sheets.";
+
+            } else {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+                statsBtn.classList.add('disabled');
+                mapBtn.classList.add('disabled');
+                btn.innerHTML = '<i class="fas fa-save me-1"></i> Guardar Cambios';
+                btn.title = "";
+            }
+        }
+
+        function downloadConfig() {
+            const configStr = localStorage.getItem('expedienteConfig');
+            if (!configStr) {
+                alert('No se ha encontrado ninguna configuración guardada en este navegador.');
+                return;
+            }
+
+            const blob = new Blob([configStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'expediente_config.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function saveChangesToServer(event) {
+            event.preventDefault();
+
+            const btn = document.getElementById('exportExcelBtn');
+            if (btn.classList.contains('disabled') || !allCases || allCases.length === 0) {
+                return;
+            }
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...';
+            btn.disabled = true;
+
+            try {
+                // Enviar todos los datos al servidor para que sobrescriba la hoja
+                const response = await fetch('/api/cases', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ headers: excelHeaders, cases: allCases }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'El servidor devolvió un error.');
+                }
+
+                alert('¡Cambios guardados en Google Sheets con éxito!');
+
+            } catch (error) {
+                console.error("Error al guardar en Google Sheets:", error);
+                alert("Ocurrió un error al guardar los cambios: " + error.message);
+            } finally {
+                btn.innerHTML = '<i class="fas fa-save me-1"></i> Guardar Cambios';
+                updateExportButtonState();
+            }
+        }
+
+        // Renombramos la función en el listener para que coincida
+        document.getElementById('exportExcelBtn').addEventListener('click', saveChangesToServer);
+    </script>
+</body>
+
+</html>
