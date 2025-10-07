@@ -298,15 +298,21 @@
             <a class="navbar-brand" href="#">
                 <i class="fas fa-hands-helping me-2"></i>Sistema de Casos - Adultos Mayores
             </a>
+            <div class="d-none d-lg-flex align-items-center ms-4" id="viewConfigButtons">
+                <span class="navbar-text small me-2 text-white-50">Vistas:</span>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-light" id="loadViewConfigBtn"
+                        title="Cargar configuración para la vista de detalles"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-outline-light" id="loadAddConfigBtn"
+                        title="Cargar configuración para el formulario de edición/creación"><i
+                            class="fas fa-edit"></i></button>
+                </div>
+            </div>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" id="loadNewFileLink"><i class="fas fa-file-upload me-1"></i> Cargar
-                            Nuevo Archivo</a>
-                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="configurador.html" target="_blank" rel="noopener noreferrer"><i
                                 class="fas fa-cog me-1"></i> Configuración</a>
@@ -753,18 +759,6 @@
             document.getElementById('detailOverlay').addEventListener('click', closeDetailView);
             document.getElementById('add-case-btn').addEventListener('click', openAddModal);
             document.getElementById('saveCase').addEventListener('click', saveCase);
-            document.getElementById('loadNewFileLink').addEventListener('click', async function (e) {
-                e.preventDefault();
-                if (allCases.length > 0) {
-                    if (confirm('¿Estás seguro? Se perderán todos los cambios no guardados de la sesión actual.')) {
-                        sessionStorage.clear();
-                        await clearFileFromDB();
-                        location.reload();
-                    }
-                } else {
-                    location.reload();
-                }
-            });
             document.getElementById('statsLink').addEventListener('click', function (event) {
                 if (allCases.length === 0) {
                     event.preventDefault(); // Stop navigation
@@ -801,6 +795,10 @@
                 });
             });
 
+            // Listeners para los botones de carga de configuración de vistas
+            document.getElementById('loadViewConfigBtn').addEventListener('click', () => loadSpecificConfig('config_ver.json'));
+            document.getElementById('loadAddConfigBtn').addEventListener('click', () => loadSpecificConfig('config_agregar.json'));
+
             // Cargar datos desde el servidor al iniciar
             loadDataFromServer();
             // Ya no se necesita restaurar desde storage, el servidor es la fuente de verdad.
@@ -828,7 +826,7 @@
 
             try {
                 // Hacemos la petición a nuestro servidor local
-                const response = await fetch('/api/cases');
+                const response = await fetch('http://192.168.1.104:3000/api/cases');
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `Error del servidor: ${response.status}`);
@@ -2310,11 +2308,43 @@
             }
         }
 
+        async function loadSpecificConfig(fileName) {
+            let message = '';
+            if (fileName === 'config_ver.json') {
+                message = `Vas a cargar la configuración para la VISTA DE DETALLES. 👁️\n\nEsto cambiará cómo se muestra la información en el panel lateral.\n\nLa página se recargará para aplicar los cambios. ¿Deseas continuar?`;
+            } else if (fileName === 'config_agregar.json') {
+                message = `Vas a cargar la configuración para el FORMULARIO DE EDICIÓN/CREACIÓN. 📝\n\nEsto ajustará los campos disponibles al momento de editar o agregar un nuevo caso.\n\nLa página se recargará para aplicar los cambios. ¿Deseas continuar?`;
+            } else {
+                // Mensaje genérico por si se añaden otras configuraciones en el futuro
+                message = `Esto cargará la configuración desde '${fileName}' y reemplazará la configuración actual. La página se recargará. ¿Deseas continuar?`;
+            }
+
+            if (!confirm(message)) {
+                return;
+            }
+
+            try {
+                // La ruta es relativa a la ubicación de index.html
+                const response = await fetch(fileName);
+                if (!response.ok) {
+                    throw new Error(`No se pudo cargar el archivo: ${response.statusText}. Asegúrate de que '${fileName}' exista en el servidor.`);
+                }
+                const configStr = await response.text();
+                JSON.parse(configStr); // Validar que es un JSON válido
+                localStorage.setItem('expedienteConfig', configStr);
+                alert(`¡Configuración '${fileName}' cargada exitosamente! La página se recargará para aplicar los cambios.`);
+                location.reload();
+            } catch (error) {
+                console.error('Error al cargar la configuración específica:', error);
+                alert('Error al cargar la configuración: ' + error.message);
+            }
+        }
+
+
+
         // Renombramos la función en el listener para que coincida
         document.getElementById('exportExcelBtn').addEventListener('click', saveChangesToServer);
     </script>
 </body>
 
-
 </html>
-
