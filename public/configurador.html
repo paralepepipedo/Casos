@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,34 +10,67 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
-        body { background-color: #f0f2f5; }
-        .container { max-width: 1200px; }
-        .card { box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15); }
-        .column-list { min-height: 100px; border: 1px dashed #ccc; border-radius: 5px; padding: 10px; background-color: #f8f9fa; }
-        .column-item { cursor: grab; padding: 8px; margin: 4px 0; background-color: #fff; border: 1px solid #dee2e6; border-radius: 4px; }
-        .category-card { background-color: #fff; }
+        body {
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        .card {
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+
+        .column-list {
+            min-height: 100px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f8f9fa;
+        }
+
+        .column-item {
+            cursor: grab;
+            padding: 8px;
+            margin: 4px 0;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .category-card {
+            background-color: #fff;
+        }
+
         .category-highlight {
             border: 2px solid var(--bs-success) !important;
             transition: border 0.5s ease-in-out;
         }
+
         .drag-handle {
             cursor: move;
             color: #adb5bd;
             margin-right: 10px;
         }
+
         .drag-handle:hover {
             color: #495057;
         }
+
         /* Estilo para el botón de colapsar */
         .btn[data-bs-toggle="collapse"] .fa-angle-up {
             transition: transform 0.2s ease-in-out;
         }
+
         .btn[data-bs-toggle="collapse"][aria-expanded="false"] .fa-angle-up {
             transform: rotate(180deg);
         }
+
         .dropdown-config-card {
             background-color: #fdfdff;
         }
+
         .option-item {
             display: flex;
             justify-content: space-between;
@@ -45,16 +79,22 @@
             border-bottom: 1px solid #eee;
             font-size: 0.9em;
         }
-        .option-item:last-child { border-bottom: none; }
+
+        .option-item:last-child {
+            border-bottom: none;
+        }
+
         .drag-handle-option {
             cursor: move;
             color: #adb5bd;
         }
+
         .drag-handle-option:hover {
             color: #495057;
         }
     </style>
 </head>
+
 <body>
     <div class="container mt-5">
         <div class="card">
@@ -62,13 +102,42 @@
                 <h2 class="h4 mb-0"><i class="fas fa-cog me-2"></i>Configurador de Vistas de Expedientes</h2>
             </div>
             <div class="card-body">
-                <p class="text-muted">Aquí puedes definir qué campos se mostrarán en la vista de "Detalles" y agruparlos en categorías personalizadas.</p>
+                <p class="text-muted">Aquí puedes definir qué campos se mostrarán en la vista de "Detalles" y agruparlos
+                    en categorías personalizadas.</p>
 
-                <div class="mb-4">
-                    <h5>Paso 1: Cargar Excel para leer columnas</h5>
-                    <div class="input-group">
-                        <input type="file" class="form-control" id="excelFile" accept=".xlsx, .xls">
-                        <button class="btn btn-primary" id="loadColumnsBtn"><i class="fas fa-sync-alt me-1"></i> Cargar Columnas</button>
+                <div class="row mb-4">
+                    <div class="col-md-6 border-end">
+                        <h5><span class="badge bg-primary rounded-pill me-2">1</span> Iniciar desde Excel</h5>
+                        <p class="small text-muted">Usa esta opción si es la primera vez que configuras o si las
+                            columnas de tu archivo han cambiado.</p>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="excelFile" accept=".xlsx, .xls">
+                            <button class="btn btn-primary" id="loadColumnsBtn"><i class="fas fa-sync-alt me-1"></i>
+                                Cargar Columnas</button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5><span class="badge bg-info rounded-pill me-2">Ó</span> Cargar Configuración</h5>
+                        <p class="small text-muted">Si ya tienes un archivo <code>expediente_config.json</code>, puedes
+                            cargarlo directamente para editarlo.</p>
+                        <div class="d-grid">
+                            <input type="file" id="importConfigFile" class="d-none" accept=".json">
+                            <button class="btn btn-info" id="importConfigBtn" title="Importar configuración"><i
+                                    class="fas fa-upload me-1"></i> Importar desde Archivo .json</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center my-3">
+                    <span class="text-muted">O bien</span>
+                </div>
+
+                <div class="row justify-content-center">
+                    <div class="col-md-6 d-grid">
+                        <button class="btn btn-outline-success" id="loadDefaultConfigBtn"><i
+                                class="fas fa-star me-2"></i>Cargar Configuración Predeterminada del Servidor</button>
+                        <div class="form-text text-center mt-1">Carga el archivo <code>expediente_config.json</code>
+                            guardado en el servidor.</div>
                     </div>
                 </div>
 
@@ -77,45 +146,51 @@
                     <!-- Barra de Acciones Globales -->
                     <div class="card mb-4 shadow-sm">
                         <div class="card-body bg-light d-flex justify-content-end align-items-center">
-                             <p class="text-muted me-auto mb-0 small">Guarda todos los cambios realizados en los pasos 2 y 3.</p>
-                             <input type="file" id="importConfigFile" class="d-none" accept=".json">
-                             <button class="btn btn-outline-info me-2" id="importConfigBtn" title="Importar configuración"><i class="fas fa-upload me-1"></i> Importar</button>
-                             <button class="btn btn-primary" id="saveConfigBtn"><i class="fas fa-save me-1"></i> Guardar Configuración</button>
+                            <p class="text-muted me-auto mb-0 small">Guarda todos los cambios realizados en los pasos 2
+                                y 3.</p>
+                            <button class="btn btn-primary" id="saveConfigBtn"><i class="fas fa-save me-1"></i> Guardar
+                                Configuración</button>
                         </div>
                     </div>
 
                     <!-- Paso 2 -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5>Paso 2: Organizar columnas</h5>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#step2Collapse" aria-expanded="true" aria-controls="step2Collapse">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#step2Collapse" aria-expanded="true" aria-controls="step2Collapse">
                             <i class="fas fa-compress-alt me-1"></i> Ocultar / Mostrar
                         </button>
                     </div>
                     <div class="collapse show" id="step2Collapse">
                         <div class="row">
                             <div class="col-md-4">
-                            <div class="card">
-                                <div class="card-header">Columnas Disponibles</div>
-                                <div class="card-body">
-                                    <p class="small text-muted">Arrastra las columnas que quieras mostrar a una categoría.</p>
-                                    <div id="availableColumns" class="column-list"></div>
-                                </div>
-                            </div>
-                        </div>
-    
-                            <div class="col-md-8">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0">Categorías de la Vista de Detalles</h5>
-                                <div class="btn-toolbar">
-                                    <div class="btn-group btn-group-sm me-2" role="group">
-                                        <button class="btn btn-outline-secondary" id="expandAllCategoriesBtn" title="Expandir Todo"><i class="fas fa-plus-square"></i></button>
-                                        <button class="btn btn-outline-secondary" id="collapseAllCategoriesBtn" title="Contraer Todo"><i class="fas fa-minus-square"></i></button>
+                                <div class="card">
+                                    <div class="card-header">Columnas Disponibles</div>
+                                    <div class="card-body">
+                                        <p class="small text-muted">Arrastra las columnas que quieras mostrar a una
+                                            categoría.</p>
+                                        <div id="availableColumns" class="column-list"></div>
                                     </div>
-                                    <button class="btn btn-success btn-sm" id="addCategoryBtn"><i class="fas fa-plus me-1"></i> Nueva Categoría</button>
                                 </div>
                             </div>
-                            <p class="small text-muted">Arrastra las categorías por el ícono <i class="fas fa-grip-vertical"></i> para reordenarlas.</p>
-                            <div id="categoriesContainer">
+
+                            <div class="col-md-8">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">Categorías de la Vista de Detalles</h5>
+                                    <div class="btn-toolbar">
+                                        <div class="btn-group btn-group-sm me-2" role="group">
+                                            <button class="btn btn-outline-secondary" id="expandAllCategoriesBtn"
+                                                title="Expandir Todo"><i class="fas fa-plus-square"></i></button>
+                                            <button class="btn btn-outline-secondary" id="collapseAllCategoriesBtn"
+                                                title="Contraer Todo"><i class="fas fa-minus-square"></i></button>
+                                        </div>
+                                        <button class="btn btn-success btn-sm" id="addCategoryBtn"><i
+                                                class="fas fa-plus me-1"></i> Nueva Categoría</button>
+                                    </div>
+                                </div>
+                                <p class="small text-muted">Arrastra las categorías por el ícono <i
+                                        class="fas fa-grip-vertical"></i> para reordenarlas.</p>
+                                <div id="categoriesContainer">
                                 </div>
                             </div>
                         </div>
@@ -124,18 +199,24 @@
                     <!-- Paso 3 -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5>Paso 3: Configurar Listas Desplegables</h5>
-                        <p class="small text-muted">Define opciones para que ciertos campos se muestren como listas desplegables en el formulario de edición. Las opciones se guardarán en el archivo de configuración.</p>
+                        <p class="small text-muted">Define opciones para que ciertos campos se muestren como listas
+                            desplegables en el formulario de edición. Las opciones se guardarán en el archivo de
+                            configuración.</p>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <button class="btn btn-warning" id="loadPredefinedListsBtn"><i class="fas fa-magic me-1"></i> Cargar Listas Predefinidas</button>
+                        <button class="btn btn-warning" id="loadPredefinedListsBtn"><i class="fas fa-magic me-1"></i>
+                            Cargar Listas Predefinidas</button>
                         <div class="d-flex align-items-center">
                             <div class="btn-group btn-group-sm me-2" role="group">
-                                <button class="btn btn-outline-secondary" id="expandAllDropdownsBtn" title="Expandir Todo"><i class="fas fa-plus-square"></i></button>
-                                <button class="btn btn-outline-secondary" id="collapseAllDropdownsBtn" title="Contraer Todo"><i class="fas fa-minus-square"></i></button>
+                                <button class="btn btn-outline-secondary" id="expandAllDropdownsBtn"
+                                    title="Expandir Todo"><i class="fas fa-plus-square"></i></button>
+                                <button class="btn btn-outline-secondary" id="collapseAllDropdownsBtn"
+                                    title="Contraer Todo"><i class="fas fa-minus-square"></i></button>
                             </div>
                             <div class="input-group" style="max-width: 400px; position: relative; z-index: 10;">
                                 <select class="form-select" id="addColumnForDropdown"></select>
-                                <button class="btn btn-info" id="addDropdownConfigBtn"><i class="fas fa-plus me-1"></i>Añadir Campo</button>
+                                <button class="btn btn-info" id="addDropdownConfigBtn"><i
+                                        class="fas fa-plus me-1"></i>Añadir Campo</button>
                             </div>
                         </div>
                     </div>
@@ -154,7 +235,7 @@
             document.getElementById('loadColumnsBtn').addEventListener('click', loadExcelColumns);
             document.getElementById('loadPredefinedListsBtn').addEventListener('click', loadPredefinedLists);
             document.getElementById('addDropdownConfigBtn').addEventListener('click', addDropdownConfig);
-            
+
             document.getElementById('addCategoryBtn').addEventListener('click', () => {
                 const newCategoryElement = createNewCategory('', [], true);
                 if (newCategoryElement) {
@@ -169,6 +250,7 @@
             document.getElementById('saveConfigBtn').addEventListener('click', saveConfiguration);
             document.getElementById('importConfigBtn').addEventListener('click', () => document.getElementById('importConfigFile').click());
             document.getElementById('importConfigFile').addEventListener('change', importConfiguration);
+            document.getElementById('loadDefaultConfigBtn').addEventListener('click', loadDefaultConfiguration);
 
             // Listeners para expandir/contraer todo
             document.getElementById('expandAllCategoriesBtn').addEventListener('click', () => toggleAllCollapses('#categoriesContainer .card-body.collapse', 'show'));
@@ -199,7 +281,7 @@
                     }
                     return;
                 }
-    
+
                 const deleteButton = event.target.closest('.btn-delete-category');
                 if (deleteButton) {
                     const categoryCard = deleteButton.closest('.category-card');
@@ -238,16 +320,16 @@
             }
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                
+
                 // Búsqueda más robusta de la fila de encabezados
                 const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                 let headerRowIndex = -1;
-                for(let i = 0; i < sheetData.length; i++) {
+                for (let i = 0; i < sheetData.length; i++) {
                     // Busca una fila que contenga 'ID' y 'NOMBRES' para identificarla como la fila de encabezados
                     const row = sheetData[i].map(String);
                     if (row.includes('ID') && row.includes('NOMBRES')) {
@@ -262,7 +344,7 @@
                 }
 
                 allHeaders = sheetData[headerRowIndex].filter(h => h && typeof h === 'string' && h.trim() !== '');
-                
+
                 // Al cargar un nuevo archivo, limpiamos la configuración visual anterior para evitar conflictos.
                 document.getElementById('categoriesContainer').innerHTML = '';
 
@@ -312,7 +394,7 @@
             const newElement = document.createElement('div');
             newElement.className = 'card category-card mb-3';
             newElement.id = categoryId;
-            
+
             newElement.innerHTML = `
                 <div class="card-header d-flex justify-content-between align-items-center p-2">
                     <div class="d-flex align-items-center">
@@ -336,7 +418,7 @@
                     <div class="column-list"></div>
                 </div>
             `;
-            
+
             if (prepend) {
                 container.prepend(newElement);
             } else {
@@ -344,12 +426,12 @@
             }
 
             const newList = newElement.querySelector('.column-list');
-            
+
             columns.forEach(colName => {
-                 const colItem = findColumnInAvailable(colName);
-                 if(colItem) {
-                     newList.appendChild(colItem);
-                 }
+                const colItem = findColumnInAvailable(colName);
+                if (colItem) {
+                    newList.appendChild(colItem);
+                }
             });
 
             Sortable.create(newList, {
@@ -361,11 +443,11 @@
 
             return newElement;
         }
-        
+
         function findColumnInAvailable(colName) {
             const availableContainer = document.getElementById('availableColumns');
-            for(let child of availableContainer.children) {
-                if(child.dataset.columnName === colName) {
+            for (let child of availableContainer.children) {
+                if (child.dataset.columnName === colName) {
                     return child;
                 }
             }
@@ -409,7 +491,7 @@
                     columns.push(col.dataset.columnName);
                 });
                 if (columns.length > 0) {
-                     categories.push({ title, columns });
+                    categories.push({ title, columns });
                 }
             });
 
@@ -424,7 +506,7 @@
                     dropdowns[columnName] = options;
                 }
             });
-            
+
             const config = {
                 allColumns: allHeaders,
                 categories: categories,
@@ -471,7 +553,7 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const configStr = e.target.result;
                     JSON.parse(configStr); // Validar que es un JSON válido
@@ -485,12 +567,32 @@
             reader.readAsText(file);
         }
 
+        async function loadDefaultConfiguration() {
+            if (!confirm('Esto reemplazará tu configuración local actual con la versión guardada en el servidor. ¿Deseas continuar?')) {
+                return;
+            }
+            try {
+                // La ruta es relativa a la ubicación de configurador.html
+                const response = await fetch('expediente_config.json');
+                if (!response.ok) {
+                    throw new Error(`No se pudo cargar el archivo: ${response.statusText}`);
+                }
+                const configStr = await response.text();
+                JSON.parse(configStr); // Validar JSON
+                localStorage.setItem('expedienteConfig', configStr);
+                alert('¡Configuración predeterminada cargada exitosamente! La página se recargará.');
+                location.reload();
+            } catch (error) {
+                alert('Error al cargar la configuración predeterminada: ' + error.message);
+            }
+        }
+
         function loadConfiguration() {
             const configStr = localStorage.getItem('expedienteConfig');
             if (configStr) {
                 const config = JSON.parse(configStr);
                 allHeaders = config.allColumns || [];
-    
+
                 if (allHeaders.length > 0) {
                     // 1. Primero, crea todos los elementos de columna DOM y ponlos en la lista de "Disponibles".
                     //    Esto asegura que tenemos un único elemento por columna para mover.
@@ -498,7 +600,7 @@
 
                     // Rellenar el selector de columnas para el Paso 3.
                     populateDropdownSelector(allHeaders);
-    
+
                     // 2. Luego, crea las tarjetas de categoría y mueve los elementos de columna correspondientes
                     //    desde "Disponibles" a su categoría.
                     if (config.categories) {
@@ -507,7 +609,7 @@
                             createNewCategory(cat.title, cat.columns, false);
                         });
                     }
-    
+
                     // 3. Cargar la configuración de los desplegables
                     if (config.dropdowns) {
                         for (const [columnName, options] of Object.entries(config.dropdowns)) {
@@ -546,7 +648,7 @@
             const container = document.getElementById('dropdownsContainer');
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'col-md-6 col-lg-4 mb-3';
-            
+
             const cardId = `dropdown-card-${columnName.replace(/[^a-zA-Z0-9]/g, '')}`;
             const collapseId = `collapse-${cardId}`;
 
@@ -691,4 +793,5 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>
