@@ -89,15 +89,15 @@ app.put('/api/cases', async (req, res) => {
         if (!headers || !cases) {
             return res.status(400).json({ message: 'Faltan headers o cases en la petición.' });
         }
-        
+
         const dataStartRow = 4;
         const values = cases.map(caso => headers.map(header => caso[header] || null));
-        
+
         await sheets.spreadsheets.values.clear({
             spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!A${dataStartRow}:ZZ`,
         });
-        
+
         if (values.length > 0) {
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID,
@@ -106,7 +106,7 @@ app.put('/api/cases', async (req, res) => {
                 resource: { values },
             });
         }
-        
+
         res.json({ message: 'Hoja de cálculo actualizada con éxito.' });
 
     } catch (error) {
@@ -115,6 +115,34 @@ app.put('/api/cases', async (req, res) => {
     }
 });
 
+// --- INICIO: AÑADIR ESTA NUEVA RUTA PARA GUARDAR UBICACIONES ---
+app.post('/api/location', async (req, res) => {
+    const { address, location, caseId } = req.body; // caseId es opcional pero bueno tenerlo
+
+    if (!address || !location || !location.lat || !location.lon) {
+        return res.status(400).json({ message: 'Datos de ubicación incompletos.' });
+    }
+
+    try {
+        const sheetName = 'Ubicaciones'; // El nombre exacto de tu hoja
+        const values = [[address, location.lat, location.lon]]; // Los datos deben estar en un array de arrays
+
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${sheetName}!A1`, // A1 para que busque la primera fila vacía
+            valueInputOption: 'USER_ENTERED',
+            resource: {
+                values: values,
+            },
+        });
+
+        res.status(200).json({ message: `Ubicación para "${address.split(',')[0]}" guardada.` });
+    } catch (error) {
+        console.error('Error al escribir ubicación en Google Sheet:', error);
+        res.status(500).json({ message: 'Error al guardar la ubicación en Google Sheets.', error: error.message });
+    }
+});
+// --- FIN: AÑADIR ESTA NUEVA RUTA ---
 
 // --- ELIMINAMOS LA PARTE DE "Servir archivos estáticos" y "app.listen" ---
 
