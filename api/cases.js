@@ -33,8 +33,6 @@ const sheets = google.sheets({ version: 'v4', auth });
 // --- MANTENEMOS LAS MISMAS RUTAS ---
 // GET /api/cases
 app.get('/api/cases', async (req, res) => {
-    // ... Tu código de la función GET va aquí (sin cambios) ...
-    // Pega aquí todo el contenido de tu app.get('/api/cases', ...)
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
@@ -82,8 +80,6 @@ app.get('/api/cases', async (req, res) => {
 
 // PUT /api/cases
 app.put('/api/cases', async (req, res) => {
-    // ... Tu código de la función PUT va aquí (sin cambios) ...
-    // Pega aquí todo el contenido de tu app.put('/api/cases', ...)
     try {
         const { headers, cases } = req.body;
         if (!headers || !cases) {
@@ -125,21 +121,42 @@ app.post('/api/location', async (req, res) => {
 
     try {
         const sheetName = 'Ubicaciones'; // El nombre exacto de tu hoja
-        const values = [[address, location.lat, location.lon]]; // Los datos deben estar en un array de arrays
+        
+        // --- CORRECCIÓN: AGREGAR TIMESTAMP Y CASEID (5 COLUMNAS) ---
+        const values = [[
+            new Date().toISOString(), // Fecha y hora automática (columna A)
+            address,                  // Dirección completa (columna B)
+            location.lat,             // Latitud (columna C)
+            location.lon,             // Longitud (columna D)
+            caseId || 'N/A'           // ID del caso (columna E)
+        ]];
 
+        // --- CORRECCIÓN: CAMBIAR EL RANGO PARA LAS 5 COLUMNAS ---
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID,
-            range: `${sheetName}!A1`, // A1 para que busque la primera fila vacía
+            range: `${sheetName}!A:E`, // Ahora son 5 columnas (A a E)
             valueInputOption: 'USER_ENTERED',
             resource: {
                 values: values,
             },
         });
 
-        res.status(200).json({ message: `Ubicación para "${address.split(',')[0]}" guardada.` });
+        res.status(200).json({ message: `Ubicación para "${address.split(',')[0]}" guardada correctamente.` });
     } catch (error) {
         console.error('Error al escribir ubicación en Google Sheet:', error);
-        res.status(500).json({ message: 'Error al guardar la ubicación en Google Sheets.', error: error.message });
+        
+        // Mensaje más específico según el tipo de error
+        let errorMessage = 'Error al guardar la ubicación en Google Sheets.';
+        if (error.message.includes('PERMISSION_DENIED')) {
+            errorMessage = 'Permiso denegado. Verifica que el email del servicio tenga acceso al Sheet.';
+        } else if (error.message.includes('SHEET_NOT_FOUND')) {
+            errorMessage = 'No se encontró la hoja "Ubicaciones". Crea una hoja con ese nombre.';
+        }
+        
+        res.status(500).json({ 
+            message: errorMessage, 
+            error: error.message 
+        });
     }
 });
 // --- FIN: AÑADIR ESTA NUEVA RUTA ---
