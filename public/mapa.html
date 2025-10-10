@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Casos1.0</title>
+    <title>Mapa de Casos2.0</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Leaflet.js CSS (Alternativa a Google Maps) -->
@@ -304,6 +304,18 @@
         </div>
         <!-- Toast para notificaciones de guardado -->
         <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div id="save-notification-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header">
+                    <strong class="me-auto" id="toast-title">Notificación</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body" id="toast-body">
+                    <!-- Mensaje se insertará aquí -->
+                </div>
+            </div>
+        </div>
+        <!-- Toast para notificaciones de guardado -->
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100">
             <div id="save-notification-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
                 <div class="toast-header">
                     <strong class="me-auto" id="toast-title">Notificación</strong>
@@ -727,31 +739,32 @@
             showSpecificCaseOnMap();
         }
 
-        async function saveLocationToServer(address, location) {
+        async function saveLocationToServer(address, location, caseId) {
             try {
                 // Detección de entorno mejorada: si el protocolo es 'file:' o el hostname es una IP local/localhost,
                 // asumimos que estamos en un entorno de prueba local.
                 const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168') || window.location.hostname === '127.0.0.1';
-                // ¡IMPORTANTE! Ajusta la URL local si es diferente.
-                const apiUrl = isLocal ? '/api/location' : '/api/location';
+                // --- INICIO DE LA CORRECCIÓN PARA VERCEL ---
+                // Si es local, usa la IP. Si es producción (Vercel), usa la ruta relativa.
+                const apiUrl = isLocal ? 'http://192.168.1.104:3000/api/location' : '/api/location'; // Esta línea ya era correcta, la mantenemos.
 
-                const response = await fetch('/api/location', {
-                    method: 'POST',
+                const response = await fetch(apiUrl, {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ headers: excelHeaders, cases: allCases }),
+                    body: JSON.stringify({ address, location, caseId }),
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json();
+                    const errorData = await response.text(); // Cambiado a .text() para ver el error HTML de Vercel
                     throw new Error(errorData.message || 'La respuesta del servidor no fue OK.');
                 }
-                console.log(`Ubicación para "${address}" guardada en Google Sheets.`);
-                showSaveToast(`Ubicación para "${address.split(',')[0]}" guardada.`, 'success');
+                const result = await response.json();
+                console.log(result.message);
+                showSaveToast(result.message, 'success');
             } catch (error) {
                 console.error('Error al guardar la ubicación en el servidor:', error);
-                showSaveToast('Error al guardar la ubicación.', 'danger');
+                showSaveToast(`Error al guardar: ${error.message}`, 'danger');
             }
         }
 
@@ -1035,7 +1048,7 @@
                         map.setView([lat, lon], 16);
 
                         // Guardar la nueva ubicación en el servidor (Google Sheets) - Ya es async
-                        await saveLocationToServer(li.dataset.originalAddress, { lat, lon });
+                        await saveLocationToServer(li.dataset.originalAddress, { lat, lon }, caso.internal_id);
 
                         li.remove();
                         const failedCountEl = document.getElementById('failed-count');
@@ -1065,7 +1078,7 @@
 
                 map.getContainer().style.cursor = 'crosshair'; // <-- Añadir 'async' aquí
 
-                map.once('click', function (ev) {
+                map.once('click', async function (ev) {
                     const lat = ev.latlng.lat;
                     const lon = ev.latlng.lng;
 
@@ -1087,7 +1100,7 @@
                     map.setView([lat, lon], 16);
 
                     // Guardar la nueva ubicación en el servidor (Google Sheets) - Ya es async
-                    saveLocationToServer(li.dataset.originalAddress, { lat, lon });
+                    await saveLocationToServer(li.dataset.originalAddress, { lat, lon }, caso.internal_id);
 
                     li.remove();
                     const failedCountEl = document.getElementById('failed-count');
@@ -1425,4 +1438,3 @@
 </body>
 
 </html>
-
