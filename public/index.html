@@ -869,7 +869,7 @@
             try {
                 // Hacemos la petición a nuestro servidor local
                 //const response = await fetch('/api/cases');
-                const response = await fetch('http://localhost:3000/api/cases');
+                const response = await fetch('/api/cases');
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `Error del servidor: ${response.status}`);
@@ -2475,3 +2475,4 @@
 </body>
 
 </html>
+
