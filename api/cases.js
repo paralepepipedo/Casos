@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // --- CONFIGURACIÓN ---
-const SPREADSHEET_ID = '1WrIqNjnY6yy9UTiDY2Q1kbMk6Rx1EOnQLq1HSAOkjr8';
+const SPREADSHEET_ID = '1ME4T1kbeQyGRtya9kIsMa6XJOaXKwprQ5rWPBm_2pEk';
 const SHEET_NAME = 'BD';
 
 // --- MODIFICACIÓN IMPORTANTE: LEER CREDENCIALES DESDE VARIABLES DE ENTORNO ---
@@ -165,3 +165,4 @@ app.post('/api/location', async (req, res) => {
 
 // --- EXPORTAMOS LA APP PARA VERCEL ---
 module.exports = app;
+
