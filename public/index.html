@@ -288,6 +288,15 @@
             background-color: var(--success-color);
             color: white;
         }
+
+        /* Estilos para el colapso de fieldset en el modal */
+        #caseModal fieldset legend {
+            cursor: pointer;
+        }
+
+        #caseModal fieldset legend .collapse-icon {
+            transition: transform 0.2s ease-in-out;
+        }
     </style>
 </head>
 
@@ -484,21 +493,15 @@
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="active-tab" data-bs-toggle="tab" data-bs-target="#active"
+                            <button class="nav-link" id="process-tab" data-bs-toggle="tab" data-bs-target="#process"
                                 type="button" role="tab">
-                                <i class="fas fa-clock me-1"></i> En seguimiento
+                                <i class="fas fa-cogs me-1"></i> En Proceso
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="closed-tab" data-bs-toggle="tab" data-bs-target="#closed"
                                 type="button" role="tab">
                                 <i class="fas fa-check-circle me-1"></i> Cerrados
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="high-priority-tab" data-bs-toggle="tab"
-                                data-bs-target="#high-priority" type="button" role="tab">
-                                <i class="fas fa-exclamation-circle me-1"></i> Prioridad alta
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -511,6 +514,18 @@
                             <button class="nav-link" id="incomplete-tab" data-bs-toggle="tab"
                                 data-bs-target="#incomplete" type="button" role="tab">
                                 <i class="fas fa-question-circle me-1"></i> Incompletos
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="active-tab" data-bs-toggle="tab" data-bs-target="#active"
+                                type="button" role="tab">
+                                <i class="fas fa-clock me-1"></i> En seguimiento
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="high-priority-tab" data-bs-toggle="tab"
+                                data-bs-target="#high-priority" type="button" role="tab">
+                                <i class="fas fa-exclamation-circle me-1"></i> Prioridad alta
                             </button>
                         </li>
                     </ul>
@@ -537,19 +552,14 @@
                             <!-- Cases will be loaded here -->
                         </div>
                     </div>
-                    <div class="tab-pane fade" id="active" role="tabpanel">
-                        <div class="row mt-3" id="activeCasesContainer">
-                            <!-- Active cases will be loaded here -->
+                    <div class="tab-pane fade" id="process" role="tabpanel">
+                        <div class="row mt-3" id="processCasesContainer">
+                            <!-- Process cases will be loaded here -->
                         </div>
                     </div>
                     <div class="tab-pane fade" id="closed" role="tabpanel">
                         <div class="row mt-3" id="closedCasesContainer">
                             <!-- Closed cases will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="tab-pane fade" id="high-priority" role="tabpanel">
-                        <div class="row mt-3" id="highPriorityContainer">
-                            <!-- High priority cases will be loaded here -->
                         </div>
                     </div>
                     <div class="tab-pane fade" id="vif" role="tabpanel">
@@ -562,16 +572,32 @@
                             <!-- Incomplete cases will be loaded here -->
                         </div>
                     </div>
+                    <div class="tab-pane fade" id="active" role="tabpanel">
+                        <div class="row mt-3" id="activeCasesContainer">
+                            <!-- Active cases will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="high-priority" role="tabpanel">
+                        <div class="row mt-3" id="highPriorityContainer">
+                            <!-- High priority cases will be loaded here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Floating Add Button -->
-    <button class="btn btn-primary btn-lg rounded-circle shadow-lg" id="add-case-btn"
-        style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: none;">
+    <button class="btn btn-primary btn-lg rounded-circle shadow-lg" id="add-case-btn" title="Agregar nuevo caso"
+        style="position: fixed; bottom: 85px; right: 20px; z-index: 1000; display: none;">
         <i class="fas fa-plus"></i>
     </button>
+
+    <!-- Scroll to Top Button -->
+    <a href="#" id="scrollToTopBtn" class="btn btn-dark rounded-circle shadow-lg" title="Volver arriba">
+        <i class="fas fa-arrow-up"></i>
+    </a>
+
 
     <!-- Case Detail View -->
     <div class="overlay" id="detailOverlay"></div>
@@ -778,6 +804,8 @@
                     sessionStorage.setItem('casesDataForMap', JSON.stringify(allCases)); // Para el mapa
                     sessionStorage.setItem('casesDataForStats', JSON.stringify(allCases)); // Para restaurar estado
                     sessionStorage.setItem('excelHeaders', JSON.stringify(excelHeaders)); // Para restaurar estado
+                    // Limpiar cualquier instrucción de búsqueda de caso específico de una sesión anterior
+                    sessionStorage.removeItem('showCaseOnMap');
                 }
             });
             document.getElementById('expandAllBtn').addEventListener('click', () => {
@@ -801,8 +829,22 @@
 
             // Cargar datos desde el servidor al iniciar
             loadDataFromServer();
-            // Ya no se necesita restaurar desde storage, el servidor es la fuente de verdad.
-            // const stateRestored = await restoreStateFromStorage();
+
+            // --- Lógica para el botón "Volver Arriba" ---
+            const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+
+            window.onscroll = function () {
+                if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+                    scrollToTopBtn.style.display = 'block';
+                    setTimeout(() => { scrollToTopBtn.style.opacity = '1'; }, 10);
+                } else {
+                    scrollToTopBtn.style.opacity = '0';
+                    setTimeout(() => { scrollToTopBtn.style.display = 'none'; }, 300);
+                }
+            };
+
+            scrollToTopBtn.addEventListener('click', (e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            // --- Fin de la lógica del botón ---
 
         });
 
@@ -826,7 +868,8 @@
 
             try {
                 // Hacemos la petición a nuestro servidor local
-                const response = await fetch('/api/cases');
+                //const response = await fetch('/api/cases');
+                const response = await fetch('http://localhost:3000/api/cases');
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `Error del servidor: ${response.status}`);
@@ -861,21 +904,21 @@
 
 
 
-        async function restoreStateFromStorage() {
+        function restoreStateFromStorage() {
             const casesDataRaw = sessionStorage.getItem('casesDataForStats');
             const headersRaw = sessionStorage.getItem('excelHeaders');
-            const fileData = await getFileFromDB().catch(e => {
-                console.error("Error getting file from IndexedDB:", e);
-                return null;
-            });
+            // Ya no necesitamos el archivo de IndexedDB, solo los datos de sesión.
+            const fileData = true; // Simular que el archivo existe para que la lógica continúe.
+
 
             if (casesDataRaw && headersRaw && fileData) {
                 try {
                     allCases = JSON.parse(casesDataRaw);
                     excelHeaders = JSON.parse(headersRaw);
 
-                    originalFile = new File([fileData.buffer], fileData.name, { type: fileData.type });
-                    originalSheetName = fileData.sheetName;
+                    // Ya no se maneja el archivo original de esta manera.
+                    // originalFile = new File([fileData.buffer], fileData.name, { type: fileData.type });
+                    // originalSheetName = fileData.sheetName;
 
                     if (allCases.length > 0) {
                         // Replicar la lógica de post-procesamiento
@@ -893,6 +936,7 @@
 
                         // Comprobar si se debe mostrar un detalle específico
                         const caseIdToShow = sessionStorage.getItem('showCaseDetailOnLoad');
+
                         if (caseIdToShow) {
                             const caseToShow = allCases.find(c => c.internal_id === caseIdToShow);
                             if (caseToShow) {
@@ -906,96 +950,11 @@
                     console.error("Error al restaurar el estado desde sessionStorage:", e);
                     sessionStorage.removeItem('casesDataForStats');
                     sessionStorage.removeItem('excelHeaders');
-                    await clearFileFromDB();
+                    // await clearFileFromDB(); // Ya no se usa
                     return false;
                 }
             }
             return false; // No hay estado para restaurar
-        }
-
-        // Handle file upload
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            originalFile = file; // Guardamos la referencia al archivo para usarlo al exportar
-            if (file) {
-                document.getElementById('fileInfo').style.display = 'block';
-                document.getElementById('fileName').textContent = file.name;
-                document.getElementById('processFile').disabled = false;
-            }
-        }
-
-        // Process the Excel file
-        async function processExcelFile() {
-            if (!originalFile) {
-                alert('Por favor, selecciona un archivo Excel primero.');
-                return;
-            }
-
-            // Show loading spinner
-            document.getElementById('loadingSpinner').classList.remove('d-none');
-
-            try {
-                const workbook = new ExcelJS.Workbook();
-                const fileBuffer = await originalFile.arrayBuffer();
-                await workbook.xlsx.load(fileBuffer);
-                const worksheet = workbook.worksheets[0];
-                originalSheetName = worksheet.name;
-
-                let headerRowNumber = -1;
-                worksheet.eachRow((row, rowNumber) => {
-                    if (headerRowNumber > 0) return;
-                    const rowValues = [];
-                    row.eachCell({ includeEmpty: true }, cell => rowValues.push(cell.value ? cell.value.toString() : ''));
-                    if (rowValues.includes('ID') && rowValues.includes('NOMBRES') && rowValues.includes('RUT') && rowValues.includes('EXPEDIENTE')) {
-                        headerRowNumber = rowNumber;
-                    }
-                });
-
-                if (headerRowNumber === -1) {
-                    alert('Error: No se pudo encontrar la fila de encabezados. Verifique que el archivo contenga "ID", "NOMBRES", "RUT" y "EXPEDIENTE".');
-                    document.getElementById('loadingSpinner').classList.add('d-none');
-                    return;
-                }
-
-                // Guardar el archivo en IndexedDB para persistirlo entre navegaciones
-                await saveFileToDB({
-                    name: originalFile.name,
-                    type: originalFile.type,
-                    buffer: fileBuffer,
-                    sheetName: originalSheetName
-                });
-
-                const headerRow = worksheet.getRow(headerRowNumber);
-                excelHeaders = [];
-                headerRow.eachCell({ includeEmpty: true }, cell => excelHeaders.push(cell.value ? cell.value.toString() : ''));
-                while (excelHeaders.length > 0 && excelHeaders[excelHeaders.length - 1] === '') {
-                    excelHeaders.pop();
-                }
-
-                const jsonData = [];
-                worksheet.eachRow((row, rowNumber) => {
-                    if (rowNumber > headerRowNumber) {
-                        const rowObject = {};
-                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                            if (colNumber <= excelHeaders.length) {
-                                const header = excelHeaders[colNumber - 1];
-                                let value = cell.value;
-                                if (value && typeof value === 'object' && value.result) value = value.result;
-                                else if (value && typeof value === 'object' && value.text) value = value.text;
-                                rowObject[header] = value;
-                            }
-                        });
-                        jsonData.push(rowObject);
-                    }
-                });
-
-                processExcelData(jsonData);
-            } catch (error) {
-                console.error('Error processing Excel file with ExcelJS:', error);
-                alert('Error al procesar el archivo Excel. Por favor, revisa la consola del desarrollador (F12) para más detalles. Error: ' + error.message);
-            } finally {
-                document.getElementById('loadingSpinner').classList.add('d-none');
-            };
         }
 
         // Process the Excel data and convert to case objects
@@ -1263,6 +1222,14 @@
                 }
             }, 50);
         }
+
+        // --- INICIO DE LA MODIFICACIÓN: Búsqueda insensible a acentos y mayúsculas ---
+        function normalizeText(text) {
+            if (!text) return '';
+            // Convierte a minúsculas, descompone los caracteres acentuados y elimina los diacríticos.
+            return String(text).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
 
         function getSelectedFilterValues(ulId) {
             const selected = [];
@@ -1574,6 +1541,12 @@
                         const hasExpedienteDate = cat.columns.includes(COLUMNAS.DIA) && cat.columns.includes(COLUMNAS.MES) && cat.columns.includes(COLUMNAS.ANO);
                         const hasRut = cat.columns.includes(COLUMNAS.RUT) && cat.columns.includes('DV');
                         const hasFullAddress = cat.columns.includes(COLUMNAS.CALLE) && cat.columns.includes(COLUMNAS.NUMERO) && cat.columns.includes(COLUMNAS.ACLARATORIA);
+                        // --- INICIO DE LA MODIFICACIÓN: Detectar campos de visita ---
+                        const hasVisita1 = cat.columns.includes('DÍA V1') && cat.columns.includes('MES V1') && cat.columns.includes('AÑO V1');
+                        const hasVisita2 = cat.columns.includes('DÍA V2') && cat.columns.includes('MES V2') && cat.columns.includes('AÑO V2');
+                        const hasVisita3 = cat.columns.includes('DÍA V3') && cat.columns.includes('MES V3') && cat.columns.includes('AÑO V3');
+                        let visita1Rendered = false, visita2Rendered = false, visita3Rendered = false;
+                        // --- FIN DE LA MODIFICACIÓN ---
                         let expedienteDateRendered = false;
                         let rutRendered = false;
                         let addressRendered = false;
@@ -1621,6 +1594,42 @@
                                 rendered = true;
                             }
 
+                            // --- INICIO DE LA MODIFICACIÓN: Unificar Fechas de Visita ---
+                            const renderVisita = (num, hasVisita, visitaRenderedFlag) => {
+                                if (hasVisita && [`DÍA V${num}`, `MES V${num}`, `AÑO V${num}`].includes(colName)) {
+                                    if (!visitaRenderedFlag) {
+                                        const dia = caso[`DÍA V${num}`], mes = caso[`MES V${num}`], ano = caso[`AÑO V${num}`];
+                                        const fechaCompleta = (dia || mes || ano) ? formatearFecha(dia, mes, ano) : '<span class="text-muted">N/A</span>';
+                                        categoryContent += `<li class="list-group-item d-flex justify-content-between align-items-start"><div class="ms-2 me-auto"><div class="fw-bold">Fecha Visita ${num}</div>${fechaCompleta}</div></li>`;
+                                    }
+                                    return true; // Indica que se ha manejado y no debe renderizarse de nuevo
+                                }
+                                return false;
+                            };
+
+                            if (renderVisita(1, hasVisita1, visita1Rendered)) {
+                                if (!visita1Rendered) visita1Rendered = true;
+                                rendered = true;
+                            }
+                            if (renderVisita(2, hasVisita2, visita2Rendered)) {
+                                if (!visita2Rendered) visita2Rendered = true;
+                                rendered = true;
+                            }
+                            if (renderVisita(3, hasVisita3, visita3Rendered)) {
+                                if (!visita3Rendered) visita3Rendered = true;
+                                rendered = true;
+                            }
+
+                            // Evitar que los campos de resultado y transporte se rendericen si su fecha no está
+                            if (colName.startsWith('RESULTADO V') || colName.startsWith('MEDIO DE TRANSPORTE V')) {
+                                const num = colName.match(/\d+/)[0];
+                                if (eval(`hasVisita${num}`) && eval(`visita${num}Rendered`)) {
+                                    // Se renderizará normalmente, pero solo si la fecha ya se procesó
+                                } else {
+                                    rendered = true; // Ocultar si la fecha no está en la misma categoría
+                                }
+                            }
+                            // --- FIN DE LA MODIFICACIÓN ---
                             // Renderizar otros campos
                             if (!rendered) {
                                 let value = caso[colName];
@@ -1802,19 +1811,19 @@
         }
 
         function applyFilters() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const searchTerm = normalizeText(document.getElementById('searchInput').value);
             const selectedStatuses = getSelectedFilterValues('statusFilterList');
             const selectedPriorities = getSelectedFilterValues('priorityFilterList');
             const selectedSectors = getSelectedFilterValues('sectorFilterList');
             const selectedYears = getSelectedFilterValues('yearFilterList');
 
             let filteredCases = allCases.filter(caso => {
-                // Search term filter
+                // Filtro de búsqueda (ahora insensible a mayúsculas y acentos)
                 const matchesSearch = searchTerm === '' ||
-                    caso.nombre.toLowerCase().includes(searchTerm) ||
-                    caso.direccion.toLowerCase().includes(searchTerm) ||
-                    caso.cod.toLowerCase().includes(searchTerm) ||
-                    (caso.rut && caso.rut.includes(searchTerm));
+                    normalizeText(caso.nombre).includes(searchTerm) ||
+                    normalizeText(caso.direccion).includes(searchTerm) ||
+                    normalizeText(caso.cod).includes(searchTerm) ||
+                    (caso.rut && normalizeText(caso.rut).includes(searchTerm));
 
                 // Status filter
                 const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(caso.estado);
@@ -1837,10 +1846,17 @@
 
             // Update the content of all tabs based on the new filter
             renderCases(filteredCases, 'casesContainer');
+            renderCases(filteredCases.filter(c => c.estado === 'Proceso'), 'processCasesContainer');
             renderCases(filteredCases.filter(c => c.estado === 'Seguimiento'), 'activeCasesContainer');
             renderCases(filteredCases.filter(c => c.estado === 'Cerrado'), 'closedCasesContainer');
             renderCases(filteredCases.filter(c => c.prioridad === 'Alta'), 'highPriorityContainer');
-            renderCases(filteredCases.filter(c => c.patologias && c.patologias.some(p => p.includes('VIF'))), 'vifCasesContainer');
+            // --- INICIO DE LA MODIFICACIÓN: Cambiar lógica del filtro VIF ---
+            // Ahora filtra por la columna 'RIT' si contiene al menos un número.
+            renderCases(filteredCases.filter(caso => {
+                const rifValue = caso['RIT'];
+                return rifValue && /\d/.test(rifValue); // La expresión regular /\d/ busca cualquier dígito.
+            }), 'vifCasesContainer');
+            // --- FIN DE LA MODIFICACIÓN ---
 
             // Filtrar y renderizar casos incompletos
             const columnsToCheck = [];
@@ -1881,37 +1897,103 @@
 
             // Determinar si debemos usar el campo de fecha compuesto.
             const useCompositeDate = excelHeaders.includes(COLUMNAS.DIA) && excelHeaders.includes(COLUMNAS.MES) && excelHeaders.includes(COLUMNAS.ANO);
+            // --- INICIO DE LA MODIFICACIÓN: Detectar campos de visita ---
+            const useCompositeVisita1 = excelHeaders.includes('DÍA V1') && excelHeaders.includes('MES V1') && excelHeaders.includes('AÑO V1');
+            const useCompositeVisita2 = excelHeaders.includes('DÍA V2') && excelHeaders.includes('MES V2') && excelHeaders.includes('AÑO V2');
+            const useCompositeVisita3 = excelHeaders.includes('DÍA V3') && excelHeaders.includes('MES V3') && excelHeaders.includes('AÑO V3');
 
             // Si hay configuración, agrupar por categorías
             if (viewConfig && viewConfig.categories && viewConfig.categories.length > 0) {
-                viewConfig.categories.forEach(cat => {
+                viewConfig.categories.forEach((cat, index) => {
                     let categoryFieldsHtml = '';
                     let compositeDateRendered = false;
+                    let compositeVisita1Rendered = false, compositeVisita2Rendered = false, compositeVisita3Rendered = false;
 
                     cat.columns.forEach(header => {
+                        // --- INICIO DE LA MODIFICACIÓN: Excluir campos de fecha de visita individuales ---
+                        const isVisitaField = ['DÍA V1', 'MES V1', 'AÑO V1', 'DÍA V2', 'MES V2', 'AÑO V2', 'DÍA V3', 'MES V3', 'AÑO V3'].includes(header);
+                        if (isVisitaField) {
+                            processedHeaders.add(header); // Marcar como procesado para que no aparezca en "Otros Datos"
+                            return; // Saltar el renderizado individual
+                        }
+                        // --- FIN DE LA MODIFICACIÓN ---
+
                         if (useCompositeDate && [COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(header)) {
                             if (!compositeDateRendered) {
+                                // Marcar como procesados para que no aparezcan en "Otros Datos"
+                                [COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].forEach(h => processedHeaders.add(h));
+
                                 const dia = caso[COLUMNAS.DIA] || '', mes = caso[COLUMNAS.MES] || '', ano = caso[COLUMNAS.ANO] || '';
                                 let dateValue = (ano && mes && dia) ? `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}` : '';
                                 categoryFieldsHtml += `<div class="col-md-6 col-lg-4"><label for="field-fecha-ingreso" class="form-label fw-light">Fecha de Ingreso</label><input type="date" class="form-control ${dateValue ? '' : 'empty-field'}" id="field-fecha-ingreso" data-composite-field="fecha-ingreso" value="${dateValue}"></div>`;
                                 compositeDateRendered = true;
                             }
+                        } else if (useCompositeVisita1 && ['DÍA V1', 'MES V1', 'AÑO V1'].includes(header)) {
+                            if (!compositeVisita1Rendered) {
+                                categoryFieldsHtml += createCompositeDateFieldHtml(1, caso);
+                                compositeVisita1Rendered = true;
+                            }
+                        } else if (useCompositeVisita2 && ['DÍA V2', 'MES V2', 'AÑO V2'].includes(header)) {
+                            if (!compositeVisita2Rendered) {
+                                categoryFieldsHtml += createCompositeDateFieldHtml(2, caso);
+                                compositeVisita2Rendered = true;
+                            }
+                        } else if (useCompositeVisita3 && ['DÍA V3', 'MES V3', 'AÑO V3'].includes(header)) {
+                            if (!compositeVisita3Rendered) {
+                                categoryFieldsHtml += createCompositeDateFieldHtml(3, caso);
+                                compositeVisita3Rendered = true;
+                            }
+                            // --- FIN DE LA MODIFICACIÓN ---
                         } else {
                             categoryFieldsHtml += createSingleFieldHtml(header, caso);
                         }
                         processedHeaders.add(header);
                     });
 
+                    // --- INICIO DE LA MODIFICACIÓN: Añadir campos de fecha de visita compuestos ---
+                    if (useCompositeVisita1) categoryFieldsHtml += createCompositeDateFieldHtml(1, caso);
+                    if (useCompositeVisita2) categoryFieldsHtml += createCompositeDateFieldHtml(2, caso);
+                    if (useCompositeVisita3) categoryFieldsHtml += createCompositeDateFieldHtml(3, caso);
+                    // --- FIN DE LA MODIFICACIÓN ---
+
                     if (categoryFieldsHtml) {
-                        form.innerHTML += `<fieldset class="border p-3 mb-4 col-12"><legend class="w-auto px-2">${cat.title}</legend><div class="row g-3">${categoryFieldsHtml}</div></fieldset>`;
+                        // Asegurarse de que el ID de colapso sea único y no se solape con el de "Otros Datos"
+                        // que se añade después.
+                        const collapseId = `form-category-collapse-${cat.title.replace(/[^a-zA-Z0-9]/g, '')}-${index}`;
+                        const isExpanded = index < 4; // Expandir las primeras 4 categorías
+
+                        // Asegurarse de que el icono de la flecha esté en la posición correcta al inicio
+                        let iconRotationStyle = '';
+                        if (isExpanded) {
+                            iconRotationStyle = 'transform: rotate(180deg);';
+                        }
+
+                        const legendHtml = `
+                            <legend class="w-auto px-2 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${isExpanded}">
+                                <span>${cat.title}</span>
+                                <i class="fas fa-chevron-down ms-3 collapse-icon"></i>
+                            </legend>`;
+
+                        const contentDiv = `<div class="collapse ${isExpanded ? 'show' : ''}" id="${collapseId}"><div class="row g-3">${categoryFieldsHtml}</div></div>`;
+
+                        form.innerHTML += `<fieldset class="border p-3 mb-4 col-12">${legendHtml}${contentDiv}</fieldset>`;
                     }
                 });
 
                 // Campos no categorizados
-                const uncategorizedHeaders = excelHeaders.filter(h => !processedHeaders.has(h) && ![COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(h));
+                // --- INICIO DE LA MODIFICACIÓN: Excluir todos los campos de fecha de visita de "Otros Datos" ---
+                const visitDateFields = [];
+                if (useCompositeVisita1) visitDateFields.push('DÍA V1', 'MES V1', 'AÑO V1');
+                if (useCompositeVisita2) visitDateFields.push('DÍA V2', 'MES V2', 'AÑO V2');
+                if (useCompositeVisita3) visitDateFields.push('DÍA V3', 'MES V3', 'AÑO V3');
+                const uncategorizedHeaders = excelHeaders.filter(h => !processedHeaders.has(h) && ![COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO, ...visitDateFields].includes(h));
+
                 if (uncategorizedHeaders.length > 0) {
                     let otherFieldsHtml = uncategorizedHeaders.map(header => createSingleFieldHtml(header, caso)).join('');
-                    form.innerHTML += `<fieldset class="border p-3 mb-4 col-12"><legend class="w-auto px-2">Otros Datos</legend><div class="row g-3">${otherFieldsHtml}</div></fieldset>`;
+                    const collapseId = `form-category-collapse-otros-datos`;
+                    const legendHtml = `<legend class="w-auto px-2 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false"><span>Otros Datos</span><i class="fas fa-chevron-down ms-3 collapse-icon"></i></legend>`;
+                    const contentDiv = `<div class="collapse" id="${collapseId}"><div class="row g-3">${otherFieldsHtml}</div></div>`;
+                    form.innerHTML += `<fieldset class="border p-3 mb-4 col-12">${legendHtml}${contentDiv}</fieldset>`;
                 }
             } else {
                 // Si no hay configuración, mostrar todos los campos en una lista plana
@@ -1921,8 +2003,19 @@
                     let dateValue = (ano && mes && dia) ? `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}` : '';
                     allFieldsHtml += `<div class="col-md-6 col-lg-4"><label for="field-fecha-ingreso" class="form-label fw-light">Fecha de Ingreso</label><input type="date" class="form-control ${dateValue ? '' : 'empty-field'}" id="field-fecha-ingreso" data-composite-field="fecha-ingreso" value="${dateValue}"></div>`;
                 }
+                // --- INICIO DE LA MODIFICACIÓN: Añadir campos de fecha de visita si no hay configuración ---
+                if (useCompositeVisita1) allFieldsHtml += createCompositeDateFieldHtml(1, caso);
+                if (useCompositeVisita2) allFieldsHtml += createCompositeDateFieldHtml(2, caso);
+                if (useCompositeVisita3) allFieldsHtml += createCompositeDateFieldHtml(3, caso);
+
+                const visitDateFields = [];
+                if (useCompositeVisita1) visitDateFields.push('DÍA V1', 'MES V1', 'AÑO V1');
+                if (useCompositeVisita2) visitDateFields.push('DÍA V2', 'MES V2', 'AÑO V2');
+                if (useCompositeVisita3) visitDateFields.push('DÍA V3', 'MES V3', 'AÑO V3');
+                // --- FIN DE LA MODIFICACIÓN ---
+
                 excelHeaders.forEach(header => {
-                    if (!useCompositeDate || ![COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO].includes(header)) {
+                    if (!useCompositeDate || ![COLUMNAS.DIA, COLUMNAS.MES, COLUMNAS.ANO, ...visitDateFields].includes(header)) {
                         allFieldsHtml += createSingleFieldHtml(header, caso);
                     }
                 });
@@ -1967,7 +2060,29 @@
                 });
             }
             // --- FIN DE LA MODIFICACIÓN ---
+
+            // --- INICIO DE LA MODIFICACIÓN: Rotar ícono de colapso ---
+            form.querySelectorAll('[data-bs-toggle="collapse"]').forEach(legend => {
+                const collapseTarget = document.querySelector(legend.dataset.bsTarget);
+                const icon = legend.querySelector('.collapse-icon');
+                if (collapseTarget && icon) {
+                    collapseTarget.addEventListener('show.bs.collapse', () => {
+                        icon.style.transform = 'rotate(180deg)';
+                    });
+                    collapseTarget.addEventListener('hide.bs.collapse', () => {
+                        icon.style.transform = 'rotate(0deg)';
+                    });
+                }
+            });
         }
+
+        // --- INICIO DE LA MODIFICACIÓN: Función para crear campos de fecha de visita ---
+        function createCompositeDateFieldHtml(visitNumber, caso) {
+            const dia = caso[`DÍA V${visitNumber}`] || '', mes = caso[`MES V${visitNumber}`] || '', ano = caso[`AÑO V${visitNumber}`] || '';
+            let dateValue = (ano && mes && dia) ? `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}` : '';
+            return `<div class="col-md-6 col-lg-4"><label for="field-fecha-visita-${visitNumber}" class="form-label fw-light">Fecha Visita ${visitNumber}</label><input type="date" class="form-control ${dateValue ? '' : 'empty-field'}" id="field-fecha-visita-${visitNumber}" data-composite-field="fecha-visita-${visitNumber}" value="${dateValue}"></div>`;
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
 
         function createSingleFieldHtml(header, caso) {
             if (header === 'internal_id') return '';
@@ -2043,6 +2158,18 @@
                         newCaseData[COLUMNAS.ANO] = '';
                         newCaseData[COLUMNAS.MES] = '';
                         newCaseData[COLUMNAS.DIA] = '';
+                    }
+                } else if (input.dataset.compositeField && input.dataset.compositeField.startsWith('fecha-visita-')) {
+                    const visitNumber = input.dataset.compositeField.split('-')[2];
+                    if (input.value) {
+                        const [year, month, day] = input.value.split('-');
+                        newCaseData[`AÑO V${visitNumber}`] = year;
+                        newCaseData[`MES V${visitNumber}`] = month;
+                        newCaseData[`DÍA V${visitNumber}`] = day;
+                    } else {
+                        newCaseData[`AÑO V${visitNumber}`] = '';
+                        newCaseData[`MES V${visitNumber}`] = '';
+                        newCaseData[`DÍA V${visitNumber}`] = '';
                     }
                 } else {
                     // Lógica existente para todos los demás campos.
